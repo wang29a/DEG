@@ -1,0 +1,9 @@
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/CMakeFiles/edit_cache.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/CMakeFiles/rebuild_cache.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/src/CMakeFiles/STKQ.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/src/CMakeFiles/STKQ_s.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/src/CMakeFiles/edit_cache.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/src/CMakeFiles/rebuild_cache.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/test/CMakeFiles/main.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/test/CMakeFiles/edit_cache.dir
+/mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/build/test/CMakeFiles/rebuild_cache.dir

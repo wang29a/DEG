@@ -1,0 +1,23 @@
+# ninja log v5
+8	45	1713856436328878240	src/CMakeFiles/STKQ.dir/nndescent.cpp.o	344fd8a0f758e541
+6	2442	1715961392635116159	src/CMakeFiles/STKQ.dir/component_prune.cpp.o	6b522ff5c2d1bd2f
+4	1579	1715961679390786686	src/CMakeFiles/STKQ.dir/builder.cpp.o	cec5b0b9aefa3e65
+5	2451	1715961392635116159	src/CMakeFiles/STKQ.dir/component_conn.cpp.o	f2099d527c0e0858
+4	2250	1715961392431119467	src/CMakeFiles/STKQ.dir/component_candidate.cpp.o	2303ec94b76676d
+5	2155	1715961392323121218	src/CMakeFiles/STKQ.dir/component_search_entry.cpp.o	eeb92abea13c9390
+6	2444	1715961392635116159	src/CMakeFiles/STKQ.dir/component_entry.cpp.o	25c92a23ccc949cc
+6	2211	1715961392399119986	src/CMakeFiles/STKQ.dir/component_load.cpp.o	f6f938209748f51b
+2	762	1713772436900639386	build.ninja	30339d82d30a4612
+1855	2133	1715961679954778692	test/main	f76c963d5eab0212
+1579	1855	1715961679618783454	src/libSTKQ.a	22f72902cc346197
+6	3687	1715961393875096064	src/CMakeFiles/STKQ.dir/component_init.cpp.o	bfec3e625a445630
+8	2671	1715961392859112526	src/CMakeFiles/STKQ.dir/component_refine.cpp.o	838b52111ba54a87
+9	2665	1715961392855112592	src/CMakeFiles/STKQ.dir/component_route.cpp.o	de30d056b21c1072
+16	2187	1715961392379120310	test/CMakeFiles/main.dir/main.cpp.o	18eac24202003bf7
+4	3118	1715962174316253840	src/CMakeFiles/STKQ.dir/component_init.cpp.o	bfec3e625a445630
+3118	3394	1715962174528251193	src/libSTKQ.a	22f72902cc346197
+3394	3679	1715962174880246796	test/main	f76c963d5eab0212
+5	2155	1715962546487715482	src/CMakeFiles/STKQ.dir/component_prune.cpp.o	6b522ff5c2d1bd2f
+4	3654	1715962547979697639	src/CMakeFiles/STKQ.dir/component_init.cpp.o	bfec3e625a445630
+3654	3932	1715962548203694960	src/libSTKQ.a	22f72902cc346197
+3932	4380	1715962548711688886	test/main	f76c963d5eab0212
