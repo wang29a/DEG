@@ -170,18 +170,17 @@ namespace stkq
         {
             loc_center[j] /= index->getBaseLen();
         }
+
         std::vector<Index::GeoGraphNNDescentNeighbor> tmp, pool;
         index->ep_ = rand() % index->getBaseLen(); // random initialize navigating point
         get_neighbors(emb_center, loc_center, tmp, pool);
-        for (int i = 0; i < tmp.size(); i++)
-        {
-            if (tmp[i].layer_ == 0)
-                index->geograph_enterpoints.push_back(tmp[i].id_);
-            else
-                break;
-        }
-        // index->ep_ = tmp[0].id;
-        // std::cout << "ep_ " << index->ep_ << std::endl;
+        // for (int i = 0; i < tmp.size(); i++)
+        // {
+        //     if (tmp[i].layer_ == 0)
+        //         index->geograph_enterpoints.push_back(tmp[i].id_);
+        //     else
+        //         break;
+        // }
     }
 
     void ComponentGeoGraphRefineEntryCentroid::get_neighbors(const float *query_emb, const float *query_loc, std::vector<Index::GeoGraphNNDescentNeighbor> &retset,

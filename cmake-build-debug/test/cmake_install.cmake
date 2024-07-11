@@ -1,4 +1,4 @@
-# Install script for directory: /mnt/newpart/yinziqi/clion-graph-ann-tkq/graphann-tkq/test
+# Install script for directory: /mnt/hdd/yinziqi/yinziqi/graphann-tkq/test
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
