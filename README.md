@@ -10,11 +10,11 @@ This project contains the code,, optimal parameters, and other detailed informat
 
 ## Datasets
 
-Our experiment involves four real-world datasets. Note that, all base data and query data are converted to `fvecs` format, and ground-truth data is converted to `ivecs` format. Please refer [here](http://yael.gforge.inria.fr/file_format.html) for the description of `fvecs` and `ivecs` format.
+Our experiment involves four real-world datasets where three of them can be downloaded from the link in the paper. Note that, all base data and query data are converted to `fvecs` format, and ground-truth data is converted to `ivecs` format. Please refer [here](http://yael.gforge.inria.fr/file_format.html) for the description of `fvecs` and `ivecs` format.
 
 ## Parameters
 
-For the  parameters of each algorithm on all experimental datasets, see the code.
+For the parameters of each algorithm on all experimental datasets, see the code.
 
 ## Usage
 
@@ -49,4 +49,6 @@ With the index built, you can run the following commands to perform the search. 
 cd ./build/test/
 ./main algorithm_name dataset_name \alpha max_distance_1 max_distance_2 search
 ```
+
+
 
