@@ -1,5 +1,4 @@
-# DEG:  Efficient Hybrid Vector Search Using the Dynamic Edge
-Navigation Graph
+# DEG:  Efficient Hybrid Vector Search Using the Dynamic Edge Navigation Graph
 
 ## Introduction
 
