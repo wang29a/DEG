@@ -17,12 +17,12 @@ namespace stkq
      * return pointer of builder
      */
 
-    IndexBuilder *IndexBuilder::load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *ground_file, Parameters &parameters, bool dual)
+    IndexBuilder *IndexBuilder::load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *query_alpha_file, char *ground_file, Parameters &parameters, bool dual)
     {
         if (!dual)
         {
             auto *a = new ComponentLoad(final_index_);
-            a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, ground_file, parameters);
+            a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
             std::cout << "base data len : " << final_index_->getBaseLen() << std::endl;
             std::cout << "base data emb dim : " << final_index_->getBaseEmbDim() << std::endl;
             std::cout << "base data loc dim : " << final_index_->getBaseLocDim() << std::endl;
@@ -39,10 +39,10 @@ namespace stkq
         else
         {
             auto *a = new ComponentLoad(final_index_1);
-            a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, ground_file, parameters);
+            a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
             final_index_1->set_alpha(0);
             auto *b = new ComponentLoad(final_index_2);
-            b->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, ground_file, parameters);
+            b->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
             final_index_2->set_alpha(1);
             std::cout << "base data len : " << final_index_1->getBaseLen() << std::endl;
             std::cout << "base data emb dim : " << final_index_1->getBaseEmbDim() << std::endl;
@@ -61,62 +61,21 @@ namespace stkq
             return this;
         }
     }
-    // IndexBuilder *IndexBuilder::load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *ground_file, char *partition_file, Parameters &parameters)
-    // {
-    //     auto *a = new ComponentLoad(final_index_);
-    //     a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, ground_file, parameters);
-    //     a->load_partition(partition_file);
-    //     std::cout << "base data len : " << final_index_->getBaseLen() << std::endl;
-    //     std::cout << "base data dim : " << final_index_->getBaseDim() << std::endl;
-    //     std::cout << "query data len : " << final_index_->getQueryLen() << std::endl;
-    //     std::cout << "query data dim : " << final_index_->getQueryDim() << std::endl;
-    //     std::cout << "ground truth data len : " << final_index_->getGroundLen() << std::endl;
-    //     std::cout << "ground truth data dim : " << final_index_->getGroundDim() << std::endl;
-    //     std::cout << "=====================" << std::endl;
-    //     std::cout << final_index_->getParam().toString() << std::endl;
-    //     std::cout << "=====================" << std::endl;
-    //     return this;
-    // }
-
-    /**
-     * build init graph
-     * param type init type
-     * param debug Whether to output graph index information (will have a certain impact on performance)
-     * return pointer of builder
-     */
 
     IndexBuilder *IndexBuilder::init(TYPE type, bool debug)
     {
         s = std::chrono::high_resolution_clock::now();
         ComponentInit *a = nullptr;
 
-        if (type == INIT_NSW)
-        {
-            std::cout << "__INIT : NSW__" << std::endl;
-            a = new ComponentInitNSW(final_index_);
-        }
-        else if (type == INIT_NSWV2)
-        {
-            std::cout << "__INIT : NSWV2__" << std::endl;
-            a = new ComponentInitNSWV2(final_index_);
-        }
-        else if (type == INIT_HNSW)
+        if (type == INIT_HNSW)
         {
             std::cout << "__INIT : HNSW__" << std::endl;
             a = new ComponentInitHNSW(final_index_);
         }
-        else if (type == INIT_GEO_RNG)
+        else if (type == INIT_DEG)
         {
-            std::cout << "__INIT : GEO_RNG__" << std::endl;
-            a = new ComponentInitGeoGraph(final_index_);
-        }
-        else if (type == INIT_GEO_RNG2)
-        {
-            std::cout << "__INIT : GEO_RNG__" << std::endl;
-            a = new ComponentInitGeoGraph2(final_index_);
-        }else if (type == INIT_GEO_RNG3){
-            std::cout << "__INIT : GEO_RNG__" << std::endl;
-            a = new ComponentInitGeoGraph3(final_index_);            
+            std::cout << "__INIT : DEG__" << std::endl;
+            a = new ComponentInitDEG(final_index_);
         }
         else if (type == INIT_RANDOM)
         {
@@ -127,6 +86,11 @@ namespace stkq
         {
             std::cout << "__INIT : RTREE__" << std::endl;
             a = new ComponentInitRTree(final_index_);
+        }
+        else if (type == INIT_BS4)
+        {
+            std::cout << "__INIT : BASELINE_4__" << std::endl;
+            a = new ComponentInitBS4(final_index_);
         }
         else
         {
@@ -141,53 +105,58 @@ namespace stkq
         return this;
     }
 
-    /**
-     * build refine graph
-     * @param type refine type
-     * @param debug
-     * @return
-     */
-    IndexBuilder *IndexBuilder::refine(TYPE type, bool debug)
-    {
-        ComponentRefine *a = nullptr;
-
-        if (type == REFINE_NN_DESCENT)
-        {
-            std::cout << "__REFINE : NNDscent" << std::endl;
-            a = new ComponentRefineNNDescent(final_index_);
-        }
-        else if (type == REFINE_NSG)
-        {
-            std::cout << "__REFINE : NSG__" << std::endl;
-            a = new ComponentRefineNSG(final_index_);
-        }
-        // else if (type == REFINE_SSG) {
-        //     std::cout << "__REFINE : NSSG__" << std::endl;
-        //     a = new ComponentRefineSSG(final_index_);
-        // }
-        else
-        {
-            std::cerr << "__REFINE : WRONG TYPE__" << std::endl;
-        }
-
-        a->RefineInner();
-
-        std::cout << "===================" << std::endl;
-        std::cout << "__REFINE : FINISH__" << std::endl;
-        std::cout << "===================" << std::endl;
-        e = std::chrono::high_resolution_clock::now();
-        return this;
-    }
 
     IndexBuilder *IndexBuilder::save_graph(TYPE type, char *graph_file)
     {
 
-        std::fstream out(graph_file, std::ios::binary | std::ios::out);
-        if (type == INDEX_NSG)
+        if (type == INDEX_BS4)
         {
-            out.write((char *)&final_index_->ep_, sizeof(unsigned));
+            for (unsigned subindex = 0; subindex < 5; subindex++)
+            {
+                // std::string filename = "subindex_" + std::to_string(subindex) + ".bin";
+                std::string filename = std::string(graph_file) + "subindex_" + std::to_string(subindex);
+                std::ofstream out(filename, std::ios::binary);
+
+                if (!out.is_open())
+                {
+                    std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
+                    continue;
+                }
+
+                unsigned enterpoint_id = final_index_->baseline4_enterpoint_[subindex]->GetId();
+                unsigned max_level = final_index_->baseline4_max_level_[subindex];
+
+                // Save enter point and max level for each sub-index
+                out.write((char *)&enterpoint_id, sizeof(unsigned));
+                out.write((char *)&max_level, sizeof(unsigned));
+
+                // Save all nodes for each sub-index
+                for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
+                {
+                    unsigned node_id = final_index_->baseline4_nodes_[subindex][i]->GetId();
+                    out.write((char *)&node_id, sizeof(unsigned));
+                    unsigned node_level = final_index_->baseline4_nodes_[subindex][i]->GetLevel() + 1;
+                    out.write((char *)&node_level, sizeof(unsigned));
+
+                    unsigned current_level_GK;
+                    for (unsigned j = 0; j < node_level; j++)
+                    {
+                        current_level_GK = final_index_->baseline4_nodes_[subindex][i]->GetFriends(j).size();
+                        out.write((char *)&current_level_GK, sizeof(unsigned));
+                        for (unsigned k = 0; k < current_level_GK; k++)
+                        {
+                            unsigned current_level_neighbor_id = final_index_->baseline4_nodes_[subindex][i]->GetFriends(j)[k]->GetId();
+                            out.write((char *)&current_level_neighbor_id, sizeof(unsigned));
+                        }
+                    }
+                }
+                out.close();
+            }
+            return this;
         }
-        else if (type == INDEX_HNSW)
+
+        std::fstream out(graph_file, std::ios::binary | std::ios::out);
+        if (type == INDEX_HNSW)
         {
             unsigned enterpoint_id = final_index_->enterpoint_->GetId();
             unsigned max_level = final_index_->max_level_;
@@ -214,75 +183,48 @@ namespace stkq
             out.close();
             return this;
         }
-        else if (type == INDEX_NSW)
-        {
-            for (unsigned i = 0; i < final_index_->nodes_.size(); i++)
-            {
-                unsigned GK = (unsigned)final_index_->nodes_[i]->GetFriends(0).size();
-                unsigned node_id = final_index_->nodes_[i]->GetId();
-                std::vector<unsigned> tmp;
-                for (unsigned j = 0; j < GK; j++)
-                {
-                    tmp.push_back((unsigned)final_index_->nodes_[i]->GetFriends(0)[j]->GetId());
-                }
-                out.write((char *)&node_id, sizeof(unsigned));
-                out.write((char *)&GK, sizeof(unsigned));
-                out.write((char *)tmp.data(), GK * sizeof(unsigned));
-            }
-            out.close();
-            return this;
-        }
-        else if (type == INDEX_NSWV2)
-        {
-            for (unsigned i = 0; i < final_index_->nodes_.size(); i++)
-            {
-                unsigned GK = (unsigned)final_index_->nodes_[i]->GetFriends(0).size();
-                unsigned node_id = final_index_->nodes_[i]->GetId();
-                std::vector<unsigned> tmp;
-                for (unsigned j = 0; j < GK; j++)
-                {
-                    tmp.push_back((unsigned)final_index_->nodes_[i]->GetFriends(0)[j]->GetId());
-                }
-                out.write((char *)&node_id, sizeof(unsigned));
-                out.write((char *)&GK, sizeof(unsigned));
-                out.write((char *)tmp.data(), GK * sizeof(unsigned));
-            }
-            out.close();
-            return this;
-        }
-        else if (type == INDEX_GEOGRAPH)
+        else if (type == INDEX_DEG)
         {
             int average_neighbor_size = 0;
-            unsigned enterpoint_set_size = final_index_->geograph_enterpoints.size();
+            unsigned enterpoint_set_size = final_index_->DEG_enterpoints.size();
             out.write((char *)&enterpoint_set_size, sizeof(unsigned));
             for (unsigned i = 0; i < enterpoint_set_size; i++)
             {
-                unsigned node_id = final_index_->geograph_enterpoints[i]->GetId();
+                unsigned node_id = final_index_->DEG_enterpoints[i]->GetId();
                 out.write((char *)&node_id, sizeof(unsigned));
             }
 
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
-                unsigned node_id = final_index_->geograph_nodes_[i]->GetId();
+                unsigned node_id = final_index_->DEG_nodes_[i]->GetId();
                 out.write((char *)&node_id, sizeof(unsigned));
-                unsigned neighbor_size = final_index_->geograph_nodes_[i]->GetFriends().size();
+                unsigned neighbor_size = final_index_->DEG_nodes_[i]->GetFriends().size();
                 out.write((char *)&neighbor_size, sizeof(unsigned));
                 average_neighbor_size = average_neighbor_size + neighbor_size;
 
                 for (unsigned k = 0; k < neighbor_size; k++)
                 {
-                    Index::GeoGraphNeighbor &neighbor = final_index_->geograph_nodes_[i]->GetFriends()[k];
+                    Index::DEGNeighbor &neighbor = final_index_->DEG_nodes_[i]->GetFriends()[k];
                     unsigned neighbor_id = neighbor.id_;
                     out.write((char *)&neighbor_id, sizeof(unsigned));
-                    // int layer = neighbor.layer_;
-                    // out.write((char *)&layer, sizeof(int));
+
                     std::vector<std::pair<float, float>> use_range = neighbor.available_range;
+                    // unsigned range_size = use_range.size();
+                    // out.write((char *)&range_size, sizeof(unsigned));
+                    // for (unsigned t = 0; t < range_size; t++)
+                    // {
+                    //     out.write((char *)&use_range[t].first, sizeof(float));
+                    //     out.write((char *)&use_range[t].second, sizeof(float));
+                    // }
+
                     unsigned range_size = use_range.size();
                     out.write((char *)&range_size, sizeof(unsigned));
                     for (unsigned t = 0; t < range_size; t++)
                     {
-                        out.write((char *)&use_range[t].first, sizeof(float));
-                        out.write((char *)&use_range[t].second, sizeof(float));
+                        int8_t x = static_cast<int8_t>(use_range[t].first * 100);
+                        int8_t y = static_cast<int8_t>(use_range[t].second * 100);
+                        out.write((char *)&x, sizeof(int8_t));
+                        out.write((char *)&y, sizeof(int8_t));
                     }
                 }
             }
@@ -323,9 +265,79 @@ namespace stkq
 
     IndexBuilder *IndexBuilder::load_graph(TYPE type, char *graph_file)
     {
-        std::ifstream in(graph_file, std::ios::binary);
         int average_neighbor_size = 0;
         int l1_average_neighbor_size = 0;
+        if (type == INDEX_BS4)
+        {
+            final_index_->baseline4_nodes_.resize(5);
+            final_index_->baseline4_enterpoint_.resize(5);
+            final_index_->baseline4_max_level_.resize(5);
+
+            double average_neighbor_size = 0; // Initialize average neighbor size
+
+            for (unsigned subindex = 0; subindex < 5; subindex++)
+            {
+                // Open the file corresponding to the current subindex
+                // std::string filename = "subindex_" + std::to_string(subindex) + graph_file;
+                std::string filename = std::string(graph_file) + "subindex_" + std::to_string(subindex);
+                std::ifstream in(filename, std::ios::binary);
+
+                if (!in.is_open())
+                {
+                    std::cerr << "Error: Could not open file " << filename << " for reading." << std::endl;
+                    continue;
+                }
+
+                // Resize and initialize nodes for each sub-index
+                final_index_->baseline4_nodes_[subindex].resize(final_index_->getBaseLen());
+                for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
+                {
+                    final_index_->baseline4_nodes_[subindex][i] = new stkq::baseline4::BS4Node(0, 0, 0, 0);
+                }
+
+                // Read enterpoint ID and max level for this sub-index
+                unsigned enterpoint_id;
+                in.read((char *)&enterpoint_id, sizeof(unsigned));
+                in.read((char *)&final_index_->baseline4_max_level_[subindex], sizeof(unsigned));
+
+                // Load all nodes and their connections for this sub-index
+                for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
+                {
+                    unsigned node_id, node_level, current_level_GK;
+                    in.read((char *)&node_id, sizeof(unsigned));
+                    final_index_->baseline4_nodes_[subindex][node_id]->SetId(node_id);
+                    in.read((char *)&node_level, sizeof(unsigned));
+                    final_index_->baseline4_nodes_[subindex][node_id]->SetLevel(node_level - 1); // Subtract 1 to match original level
+
+                    // Read neighbors at each level
+                    for (unsigned j = 0; j < node_level; j++)
+                    {
+                        in.read((char *)&current_level_GK, sizeof(unsigned));
+                        std::vector<stkq::baseline4::BS4Node *> tmp;
+                        if (j == 0)
+                        {
+                            average_neighbor_size += current_level_GK;
+                        }
+                        for (unsigned k = 0; k < current_level_GK; k++)
+                        {
+                            unsigned current_level_neighbor_id;
+                            in.read((char *)&current_level_neighbor_id, sizeof(unsigned));
+                            tmp.push_back(final_index_->baseline4_nodes_[subindex][current_level_neighbor_id]);
+                        }
+                        final_index_->baseline4_nodes_[subindex][node_id]->SetFriends(j, tmp);
+                    }
+                }
+                // Set enterpoint for this sub-index
+                final_index_->baseline4_enterpoint_[subindex] = final_index_->baseline4_nodes_[subindex][enterpoint_id];
+
+                in.close(); // Close the file after reading
+            }
+            std::cout << "average_neighbor_size: " << average_neighbor_size / final_index_->getBaseLen() << std::endl;
+
+            return this;
+        }
+
+        std::ifstream in(graph_file, std::ios::binary);
 
         if (!in.is_open())
         {
@@ -350,6 +362,7 @@ namespace stkq
                 final_index_->nodes_[node_id]->SetId(node_id);
                 in.read((char *)&node_level, sizeof(unsigned));
                 final_index_->nodes_[node_id]->SetLevel(node_level);
+
                 for (unsigned j = 0; j < node_level; j++)
                 {
                     in.read((char *)&current_level_GK, sizeof(unsigned));
@@ -369,71 +382,16 @@ namespace stkq
                 }
             }
             std::cout << "average_neighbor_size: " << average_neighbor_size / final_index_->getBaseLen() << std::endl;
-
             final_index_->enterpoint_ = final_index_->nodes_[enterpoint_id];
             return this;
         }
-        else if (type == INDEX_NSW)
-        {
-            final_index_->nodes_.resize(final_index_->getBaseLen());
-            for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
-            {
-                final_index_->nodes_[i] = new stkq::HNSW::HnswNode(0, 0, 0, 0);
-            }
-            while (!in.eof())
-            {
-                unsigned GK, node_id;
-                in.read((char *)&node_id, sizeof(unsigned));
-                in.read((char *)&GK, sizeof(unsigned));
-                final_index_->nodes_[node_id]->SetId(node_id);
-                if (in.eof())
-                    break;
-                std::vector<unsigned> tmp(GK);
-                in.read((char *)tmp.data(), GK * sizeof(unsigned));
-                for (unsigned j = 0; j < tmp.size(); j++)
-                {
-                    final_index_->nodes_[tmp[j]]->SetId(tmp[j]);
-                    final_index_->nodes_[node_id]->AddFriends(final_index_->nodes_[tmp[j]], false);
-                }
-            }
-            return this;
-        }
-        else if (type == INDEX_NSWV2)
-        {
-            final_index_->nodes_.resize(final_index_->getBaseLen());
-            for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
-            {
-                final_index_->nodes_[i] = new stkq::HNSW::HnswNode(0, 0, 0, 0);
-            }
-            while (!in.eof())
-            {
-                unsigned GK, node_id;
-                in.read((char *)&node_id, sizeof(unsigned));
-                in.read((char *)&GK, sizeof(unsigned));
-                final_index_->nodes_[node_id]->SetId(node_id);
-                if (in.eof())
-                    break;
-                std::vector<unsigned> tmp(GK);
-                in.read((char *)tmp.data(), GK * sizeof(unsigned));
-                for (unsigned j = 0; j < tmp.size(); j++)
-                {
-                    final_index_->nodes_[tmp[j]]->SetId(tmp[j]);
-                    final_index_->nodes_[node_id]->AddFriends(final_index_->nodes_[tmp[j]], false);
-                }
-            }
-            return this;
-        }
-        else if (type == INDEX_NSG)
-        {
-            in.read((char *)&final_index_->ep_, sizeof(unsigned));
-        }
-        else if (type == INDEX_GEOGRAPH)
+        else if (type == INDEX_DEG)
         {
             int average_neighbor_size = 0;
-            final_index_->geograph_nodes_.resize(final_index_->getBaseLen());
+            final_index_->DEG_nodes_.resize(final_index_->getBaseLen());
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
-                final_index_->geograph_nodes_[i] = new stkq::GEOGRAPH::GeoGraphNode(0, 0, 0);
+                final_index_->DEG_nodes_[i] = new stkq::DEG::DEGNode(0, 0);
             }
             unsigned enterpoint_id, enterpoint_size;
             final_index_->enterpoint_set.clear();
@@ -443,54 +401,38 @@ namespace stkq
                 in.read((char *)&enterpoint_id, sizeof(unsigned));
                 final_index_->enterpoint_set.push_back(enterpoint_id);
             }
+
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
                 unsigned node_id, neighbor_size;
                 in.read((char *)&node_id, sizeof(unsigned));
-                final_index_->geograph_nodes_[i]->SetId(node_id);
+                final_index_->DEG_nodes_[i]->SetId(node_id);
                 in.read((char *)&neighbor_size, sizeof(unsigned));
                 average_neighbor_size = average_neighbor_size + neighbor_size;
-                // if (j == 0)
-                // {
-                //     average_neighbor_size = average_neighbor_size + neighbor_size;
-                // }
-                final_index_->geograph_nodes_[i]->SetMaxM(neighbor_size);
-                std::vector<Index::GeoGraphSimpleNeighbor> neighbors;
+                final_index_->DEG_nodes_[i]->SetMaxM(neighbor_size);
+                std::vector<Index::DEGSimpleNeighbor> neighbors;
                 neighbors.reserve(neighbor_size);
                 int max_layer = 0;
                 for (unsigned k = 0; k < neighbor_size; k++)
                 {
                     unsigned neighbor_id;
                     in.read((char *)&neighbor_id, sizeof(unsigned));
-                    // float e_dist, s_dist;
-                    // int layer;
-                    // in.read((char *)&e_dist, sizeof(float));
-                    // in.read((char *)&s_dist, sizeof(float));
-                    // in.read((char *)&layer, sizeof(int));
-                    // if (layer == 0)
-                    // {
-                    // l1_average_neighbor_size = l1_average_neighbor_size + 1;
-                    // }
                     unsigned range_size;
                     in.read((char *)&range_size, sizeof(unsigned));
-                    std::vector<std::pair<float, float>> use_range;
+                    std::vector<std::pair<int8_t, int8_t>> use_range;
+                    use_range.reserve(range_size+1);                    
                     for (unsigned t = 0; t < range_size; t++)
                     {
-                        float range_start, range_end;
-                        in.read((char *)&range_start, sizeof(float));
-                        in.read((char *)&range_end, sizeof(float));
+                        int8_t range_start, range_end;
+                        in.read((char *)&range_start, sizeof(int8_t));
+                        in.read((char *)&range_end, sizeof(int8_t));                        
                         use_range.push_back(std::make_pair(range_start, range_end));
                     }
-                    // neighbors.push_back(std::make_shared<Index::GeoGraphEdge>(final_index_->geograph_nodes_[neighbor_id], e_dist, s_dist, use_range));
-                    neighbors.push_back(Index::GeoGraphSimpleNeighbor(neighbor_id, use_range));
+                    neighbors.push_back(Index::DEGSimpleNeighbor(neighbor_id, use_range));
                 }
-                final_index_->geograph_nodes_[i]->SetSearchFriends(neighbors);
+                final_index_->DEG_nodes_[i]->SetSearchFriends(neighbors);
             }
             std::cout << "average_neighbor_size: " << average_neighbor_size / final_index_->getBaseLen() << std::endl;
-
-            // std::cout << "average_neighbor_size: " << average_neighbor_size / final_index_->getBaseLen() << std::endl;
-            // std::cout << "l1_average_neighbor_size: " << l1_average_neighbor_size / final_index_->getBaseLen() << std::endl;
-            // final_index_->geograph_enterpoint_ = final_index_->geograph_nodes_[enterpoint_id];
             return this;
         }
 
@@ -652,7 +594,6 @@ namespace stkq
 
         return this;
     }
-
     /**
      * offline search
      * param entry_type
@@ -863,6 +804,12 @@ namespace stkq
 
                     auto s2 = std::chrono::high_resolution_clock::now();
 
+                    std::chrono::duration<double> total_duration = s2 - s1;
+
+                    double throughput = final_index_1->getQueryLen() / total_duration.count();
+
+                    // std::cout << "Throughput of R-Tree: " << throughput << " queries/second\n";
+
                     res_2.clear();
                     res_2.resize(final_index_2->getQueryLen());
                     for (unsigned i = 0; i < final_index_2->getQueryLen(); i++)
@@ -871,11 +818,18 @@ namespace stkq
                         a2->SearchEntryInner(i, pool);
                         b2->RouteInner(i, pool, res_2[i]);
                     }
+                    auto s3 = std::chrono::high_resolution_clock::now();
+                    total_duration = s3 - s2;
+
+                    throughput = final_index_1->getQueryLen() / total_duration.count();
+
+                    // std::cout << "Throughput of HNSW: " << throughput << " queries/second\n";
+
                     std::cout << "DistCount: " << final_index_2->getDistCount() << std::endl;
                     std::cout << "HopCount: " << final_index_2->getHopCount() << std::endl;
+
                     final_index_2->resetDistCount();
                     final_index_2->resetHopCount();
-                    // int cnt = 0;
                     std::priority_queue<Index::CloserFirst> result_queue;
                     std::vector<std::vector<unsigned>> res;
 
@@ -995,21 +949,20 @@ namespace stkq
             std::cout << "__ROUTER : GREEDY__" << std::endl;
             b = new ComponentSearchRouteGreedy(final_index_);
         }
-        else if (route_type == ROUTER_NSW)
-        {
-            std::cout << "__ROUTER : NSW__" << std::endl;
-            b = new ComponentSearchRouteNSW(final_index_);
-        }
         else if (route_type == ROUTER_HNSW)
         {
             std::cout << "__ROUTER : HNSW__" << std::endl;
             b = new ComponentSearchRouteHNSW(final_index_);
         }
-        else if (route_type == ROUTER_GEOGRAPH)
+        else if (route_type == ROUTER_BS4)
         {
-            std::cout << "__ROUTER : GEOGRAPH__" << std::endl;
-            b = new ComponentSearchRouteGeoGraph(final_index_);
-            // b->UpdateEnterpointSet();
+            std::cout << "__ROUTER : BASELINE4__" << std::endl;
+            b = new ComponentSearchRouteBS4(final_index_);
+        }
+        else if (route_type == ROUTER_DEG)
+        {
+            std::cout << "__ROUTER : DEG__" << std::endl;
+            b = new ComponentSearchRouteDEG(final_index_);
         }
         else
         {
@@ -1051,17 +1004,14 @@ namespace stkq
                 for (unsigned i = 0; i < final_index_->getQueryLen(); i++)
                 //                for (unsigned i = 0; i < 1000; i++)
                 {
+                    final_index_->set_alpha(final_index_->getQueryWeightData()[i]);
                     std::vector<Index::Neighbor> pool;
                     a->SearchEntryInner(i, pool);
                     b->RouteInner(i, pool, res[i]);
                 }
-
                 auto e1 = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double> diff = e1 - s1;
                 std::cout << "search time: " << diff.count() / final_index_->getQueryLen() << "\n";
-                //                std::cout << "search time: " << diff.count() / 1000 << "\n";
-
-                // float speedup = (float)(index_->n_ * query_num) / (float)distcount;
                 std::cout << "DistCount: " << final_index_->getDistCount() << std::endl;
                 std::cout << "HopCount: " << final_index_->getHopCount() << std::endl;
                 final_index_->resetDistCount();
@@ -1271,7 +1221,6 @@ namespace stkq
 
     void IndexBuilder::peak_memory_footprint()
     {
-
         unsigned iPid = (unsigned)getpid();
 
         std::cout << "PID: " << iPid << std::endl;
@@ -1290,4 +1239,5 @@ namespace stkq
         }
         info.close();
     }
+
 }

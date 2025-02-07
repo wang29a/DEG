@@ -21,6 +21,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/STKQ.dir/component_search_entry.cpp.o.d"
   "CMakeFiles/STKQ.dir/nndescent.cpp.o"
   "CMakeFiles/STKQ.dir/nndescent.cpp.o.d"
+  "CMakeFiles/STKQ.dir/rtree.cpp.o"
+  "CMakeFiles/STKQ.dir/rtree.cpp.o.d"
   "libSTKQ.a"
   "libSTKQ.pdb"
 )

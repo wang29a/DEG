@@ -410,129 +410,121 @@ namespace stkq
         long long test_sum = 0;
     };
 
-    // class Mbr
-    // {
-    // public:
-    //     static const unsigned DIM = 2;
-    //     std::vector<std::vector<float>> coord;
-    //     std::vector<unsigned> object_ids;
-    //     Mbr()
-    //     {
-    //         init();
-    //     };
-
-    //     Mbr(float xmin, float xmax, float ymin, float ymax)
-    //     {
-    //         std::vector<float> x_coor = {xmin, xmax};
-    //         std::vector<float> y_coor = {ymin, ymax};
-    //         coord.emplace_back(x_coor);
-    //         coord.emplace_back(y_coor);
-    //     };
-
-    //     void init()
-    //     {
-    //         std::vector<float> v = {INF_P, INF_N};
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //             coord.emplace_back(v);
-    //     };
-    //     float getArea() const
-    //     {
-    //         float area = 1;
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //             area *= coord[dim][1] - coord[dim][0];
-    //         return area;
-    //     };
-
-    //     float getMargin() const
-    //     {
-    //         float margin = 0;
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //             margin += coord[dim][1] - coord[dim][0];
-    //         return margin;
-    //     };
-
-    //     void enlarge(Mbr &add)
-    //     {
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //         {
-    //             coord[dim][0] = std::min(coord[dim][0], add.coord[dim][0]);
-    //             coord[dim][1] = std::max(coord[dim][1], add.coord[dim][1]);
-    //         }
-    //     };
-
-    //     inline float getCenter(size_t dim)
-    //     {
-    //         return (coord[dim][0] + coord[dim][1]) * 0.5;
-    //     }
-
-    //     inline bool isPoint()
-    //     {
-    //         for (size_t i = 0; i < DIM; i++)
-    //         {
-    //             if (coord[i][0] != coord[i][1])
-    //                 return false;
-    //         }
-    //         return true;
-    //     }
-
-    //     bool operator==(const Mbr &m) const
-    //     {
-    //         return m.coord == coord;
-    //     }
-
-    //     static Mbr getMbr(Mbr &mbr1, Mbr &mbr2)
-    //     {
-    //         Mbr mbr;
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //         {
-    //             mbr.coord[dim][0] = std::min(mbr1.coord[dim][0], mbr2.coord[dim][0]);
-    //             mbr.coord[dim][1] = std::max(mbr1.coord[dim][1], mbr2.coord[dim][1]);
-    //         }
-    //         return mbr;
-    //     };
-    //     // get the overlap area of two MBRs
-    //     static float getOverlap(Mbr &mbr1, Mbr &mbr2)
-    //     {
-    //         float overlap = 1;
-    //         for (size_t dim = 0; dim < DIM; dim++)
-    //         {
-    //             float maxMin = std::max(mbr1.coord[dim][0], mbr2.coord[dim][0]);
-    //             float minMax = std::min(mbr1.coord[dim][1], mbr2.coord[dim][1]);
-    //             if (maxMin >= minMax)
-    //                 return 0;
-    //             overlap *= minMax - maxMin;
-    //         }
-    //         return overlap;
-    //     };
-
-    //     static bool isOverlap(Mbr &mbr1, Mbr &mbr2)
-    //     {
-    //         if (mbr2.isPoint())
-    //         {
-    //             for (size_t dim = 0; dim < DIM; dim++)
-    //             {
-    //                 if (mbr2.coord[dim][1] > mbr1.coord[dim][1] || mbr2.coord[dim][0] < mbr1.coord[dim][0])
-    //                 {
-    //                     return false;
-    //                 }
-    //             }
-    //         }
-    //         else
-    //         {
-    //             float dis = Mbr::getOverlap(mbr1, mbr2);
-    //             if (dis == 0)
-    //             {
-    //                 return false;
-    //             }
-    //         }
-    //         return true;
-    //     };
-    // };
-
-    class GEOGRAPH
+    class baseline4
     {
     public:
-        struct GeoGraphNeighbor
+        class BS4Node
+        {
+        public:
+            explicit BS4Node(int id, int level, size_t max_m, size_t max_m0)
+                : id_(id), level_(level), max_m_(max_m), max_m0_(max_m0), friends_at_layer_(level + 1)
+            {
+                for (int i = 1; i <= level; ++i)
+                    friends_at_layer_[i].reserve(max_m_ + 1);
+
+                friends_at_layer_[0].reserve(max_m0_ + 1);
+            }
+
+            inline size_t GetId() const { return (size_t)id_; }
+            inline void SetId(int id) { id_ = id; }
+            inline int GetLevel() const { return level_; }
+            inline void SetLevel(int level) { level_ = level; }
+            inline size_t GetMaxM() const { return max_m_; }
+            inline size_t GetMaxM0() const { return max_m0_; }
+
+            inline std::vector<BS4Node *> &GetFriends(int level) { return friends_at_layer_[level]; }
+            inline void SetFriends(int level, std::vector<BS4Node *> &new_friends)
+            {
+                if (level >= friends_at_layer_.size())
+                    friends_at_layer_.resize(level + 1);
+                friends_at_layer_[level].swap(new_friends);
+            }
+
+            inline std::mutex &GetAccessGuard() { return access_guard_; }
+
+            // 1. The list of friends is sorted
+            // 2. bCheckForDup == true addFriend checks for duplicates using binary searching
+            inline void AddFriends(BS4Node *element, bool bCheckForDup)
+            {
+                std::unique_lock<std::mutex> lock(access_guard_);
+                if (bCheckForDup)
+                {
+                    auto it = std::lower_bound(friends_at_layer_[0].begin(), friends_at_layer_[0].end(), element);
+                    if (it == friends_at_layer_[0].end() || (*it) != element)
+                    {
+                        friends_at_layer_[0].insert(it, element);
+                    }
+                }
+                else
+                {
+                    friends_at_layer_[0].push_back(element);
+                }
+            }
+
+        private:
+            int id_;
+            int level_;
+            size_t max_m_;
+            size_t max_m0_;
+            std::vector<std::vector<BS4Node *>> friends_at_layer_;
+            std::mutex access_guard_;
+        };
+
+        class BS4FurtherFirst
+        {
+        public:
+            BS4FurtherFirst(BS4Node *node, float distance) : node_(node), distance_(distance) {}
+            inline float GetDistance() const { return distance_; }
+            inline BS4Node *GetNode() const { return node_; }
+            bool operator<(const BS4FurtherFirst &n) const
+            {
+                return (distance_ < n.GetDistance());
+            }
+
+        private:
+            BS4Node *node_;
+            float distance_;
+            // 距离较小的节点会被视为“优先级较低” 因此 FurtherFirst 实际上是用于构建最大堆的
+        };
+
+        class BS4CloserFirst
+        {
+        public:
+            BS4CloserFirst(BS4Node *node, float distance) : node_(node), distance_(distance) {}
+            inline float GetDistance() const { return distance_; }
+            inline BS4Node *GetNode() const { return node_; }
+            bool operator<(const BS4CloserFirst &n) const
+            {
+                return (distance_ > n.GetDistance());
+            }
+
+        private:
+            BS4Node *node_;
+            float distance_;
+            // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
+        };
+
+        // typedef typename std::pair<BS4Node *, float> IdDistancePair;
+        // struct IdDistancePairMinHeapComparer
+        // {
+        //     bool operator()(const IdDistancePair &p1, const IdDistancePair &p2) const
+        //     {
+        //         return p1.second > p2.second;
+        //     }
+        // };
+        // typedef typename boost::heap::d_ary_heap<IdDistancePair, boost::heap::arity<4>, boost::heap::compare<IdDistancePairMinHeapComparer>> IdDistancePairMinHeap;
+        // // IdDistancePairMinHeap 是一个 4-叉最小堆，使用 boost::heap::d_ary_heap 实现，并通过 IdDistancePairMinHeapComparer 来比较元素
+        // // 这样构造的堆会将最小的距离元素保持在顶部
+        std::vector<BS4Node *> baseline4_enterpoint_; // = nullptr;
+        std::vector<std::vector<BS4Node *>> baseline4_nodes_;
+        std::vector<int> baseline4_max_level_;
+        mutable std::mutex bs4_max_level_guard_;
+    };
+
+    class DEG
+    {
+    public:
+        struct DEGNeighbor
         {
             unsigned id_;
             float emb_distance_;
@@ -540,15 +532,15 @@ namespace stkq
             unsigned layer_;
             std::vector<std::pair<float, float>> available_range;
 
-            GeoGraphNeighbor() = default;
-            GeoGraphNeighbor(unsigned id, float emb_distance, float geo_distance) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance)
+            DEGNeighbor() = default;
+            DEGNeighbor(unsigned id, float emb_distance, float geo_distance) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance)
             {
                 available_range.emplace_back(0, 1);
             }
-            GeoGraphNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range) {}
-            GeoGraphNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range), layer_(l) {}
+            DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range) {}
+            DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range), layer_(l) {}
 
-            inline bool operator<(const GeoGraphNeighbor &other) const
+            inline bool operator<(const DEGNeighbor &other) const
             {
                 // return geo_distance_ < other.geo_distance_;
                 // 较小的 geo_distance_ 值会被排序到较前的位置
@@ -556,28 +548,30 @@ namespace stkq
             }
         };
 
-        struct GeoGraphSimpleNeighbor
+        struct DEGSimpleNeighbor
         {
             unsigned id_;
             // unsigned layer_;
-            std::vector<std::pair<float, float>> available_range;
+            // std::vector<std::pair<float, float>> available_range;
+            std::vector<std::pair<int8_t, int8_t>> active_range;
 
-            GeoGraphSimpleNeighbor() = default;
-            GeoGraphSimpleNeighbor(unsigned id, std::vector<std::pair<float, float>> range) : id_{id}, available_range(range) {}
+            DEGSimpleNeighbor() = default;
+            // DEGSimpleNeighbor(unsigned id, std::vector<std::pair<float, float>> range) : id_{id}, available_range(range) {}
+            DEGSimpleNeighbor(unsigned id, std::vector<std::pair<int8_t, int8_t>> range) : id_{id}, active_range(range) {}
         };
 
-        struct GeoGraphNNDescentNeighbor
+        struct DEGNNDescentNeighbor
         {
             unsigned id_;
             float emb_distance_;
             float geo_distance_;
             bool flag;
             int layer_;
-            GeoGraphNNDescentNeighbor() = default;
-            GeoGraphNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
+            DEGNNDescentNeighbor() = default;
+            DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
             {
             }
-            inline bool operator<(const GeoGraphNNDescentNeighbor &other) const
+            inline bool operator<(const DEGNNDescentNeighbor &other) const
             {
                 // return geo_distance_ < other.geo_distance_;
                 return (geo_distance_ < other.geo_distance_ || (geo_distance_ == other.geo_distance_ && emb_distance_ < other.emb_distance_));
@@ -585,376 +579,56 @@ namespace stkq
             }
         };
 
-        // struct GeoGraphNNDescentNeighbor_SkylineFurther
-        // {
-        //     unsigned id_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     bool flag;
-        //     int layer_;
-        //     GeoGraphNNDescentNeighbor() = default;
-        //     GeoGraphNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
-        //     {
-        //     }
-        //     inline bool operator<(const GeoGraphNNDescentNeighbor &other) const
-        //     {
-        //         // return geo_distance_ < other.geo_distance_;
-        //         return (geo_distance_ < other.geo_distance_ || (geo_distance_ == other.geo_distance_ && emb_distance_ < other.emb_distance_));
-        //         // 较小的 geo_distance_ 值会被排序到较前的位置
-        //     }
-        // };
-
-        class GeoGraphNode
+        class DEGNode
         {
         public:
-            explicit GeoGraphNode(int id, int level, int max_m)
-                : id_(id), level_(level), max_m_(max_m) //, friends_at_layer_(level + 1)
+            explicit DEGNode(int id, int max_m)
+                : id_(id), max_m_(max_m)
             {
-                friends.reserve(max_m_ + 1);
-                // for (int i = 0; i <= level; ++i)
-                // friends_at_layer_[i].reserve(max_m_ + 1);
+                // friends.reserve(max_m_ + 1);
+                // friends_for_search.reserve(max_m_ + 1);
+                friends.clear();
+                friends_for_search.clear();
             }
 
             inline int GetId() const { return id_; }
             inline void SetId(int id) { id_ = id; }
             inline int GetMaxM() const { return max_m_; }
-            inline int GetLevel() const { return level_; }
-            inline void SetLevel(int level) { level_ = level; }
+            // inline int GetLevel() const { return level_; }
+            // inline void SetLevel(int level) { level_ = level; }
             inline void SetMaxM(int max_m) { max_m_ = max_m; }
-            // inline GeoGraphNode *GetNode() const { return node_; }
-            // inline std::vector<GeoGraphNeighbor> &GetFriends() { return friends_at_layer_[0]; }
-            // inline std::vector<GeoGraphNeighbor> &GetFriends(int level) { return friends_at_layer_[level]; }
-            inline std::vector<GeoGraphNeighbor> &GetFriends() { return friends; }
+            inline std::vector<DEGNeighbor> &GetFriends() { return friends; }
 
-            // inline void SetFriends(int level, std::vector<GeoGraphNeighbor> &new_friends)
-            // {
-            //     if (level >= friends_at_layer_.size())
-            //         friends_at_layer_.resize(level + 1);
-            //     friends_at_layer_[level].swap(new_friends);
-            // }
-
-            inline void SetFriends(std::vector<GeoGraphNeighbor> &new_friends)
+            inline void SetFriends(std::vector<DEGNeighbor> &new_friends)
             {
                 friends.swap(new_friends);
             }
 
-            inline std::vector<GeoGraphSimpleNeighbor> &GetSearchFriends() { return friends_for_search; }
+            inline std::vector<DEGSimpleNeighbor> &GetSearchFriends() { return friends_for_search; }
 
-            // inline void SetFriends(int level, std::vector<GeoGraphNeighbor> &new_friends)
-            // {
-            //     if (level >= friends_at_layer_.size())
-            //         friends_at_layer_.resize(level + 1);
-            //     friends_at_layer_[level].swap(new_friends);
-            // }
-
-            inline void SetSearchFriends(std::vector<GeoGraphSimpleNeighbor> &new_friends)
+            inline void SetSearchFriends(std::vector<DEGSimpleNeighbor> &new_friends)
             {
                 friends_for_search.swap(new_friends);
             }
 
             inline std::mutex &GetAccessGuard() { return access_guard_; }
 
-            // inline void AddVisitedNode(unsigned id) { Visited_Set.insert(id); }
-
-            // inline bool NotVisited(unsigned id) {return Visited_Set.find(id) != Visited_Set.end();}
-
-            // inline void AddFriends(GeoGraphEdge element, bool bCheckForDup)
-            // {
-            //     std::unique_lock<std::mutex> lock(access_guard_);
-            //     if (bCheckForDup)
-            //     {
-            //         auto it = std::lower_bound(friends.begin(), friends.end(), element);
-            //         // 使用std::lower_bound在friends_at_layer_[0]中搜索element的正确插入位置
-            //         // 这个搜索过程假定friends_at_layer_[0]是预先排序的，以便能够有效地使用二分查找
-            //         if (it == friends.end() || (it) != element)
-            //         {
-            //             friends.insert(it, element);
-            //         }
-            //     }
-            //     else
-            //     {
-            //         friends.push_back(element);
-            //     }
-            // }
         private:
             int id_;
-            int level_;
+            // int level_;
             size_t max_m_;
-            std::vector<GeoGraphNeighbor> friends;
-            std::vector<GeoGraphSimpleNeighbor> friends_for_search;
-            // std::vector<std::vector<GeoGraphNeighbor>> friends_at_layer_;
-            // std::unordered_set<unsigned> Visited_Set;
+            std::vector<DEGNeighbor> friends;
+            std::vector<DEGSimpleNeighbor> friends_for_search;
             std::mutex access_guard_;
         };
-
-        // class GeoGraphEdge
-        // {
-        // public:
-        //     GeoGraphEdge() = default;
-        //     GeoGraphEdge(GeoGraphNode *node, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range) : node_{node}, emb_distance_(emb_distance), geo_distance_(geo_distance), available_range(range) {}
-        //     // 移动构造函数
-        //     GeoGraphEdge(GeoGraphEdge &&other) noexcept
-        //         : node_{other.node_}, emb_distance_{other.emb_distance_}, geo_distance_{other.geo_distance_}, available_range(std::move(other.available_range))
-        //     {
-        //         other.node_ = nullptr;
-        //     }
-        //     // 移动赋值运算符
-        //     GeoGraphEdge &operator=(GeoGraphEdge &&other) noexcept
-        //     {
-        //         if (this != &other)
-        //         {
-        //             node_ = other.node_;
-        //             emb_distance_ = other.emb_distance_;
-        //             geo_distance_ = other.geo_distance_;
-        //             available_range = std::move(other.available_range);
-        //             other.node_ = nullptr;
-        //         }
-        //         return *this;
-        //     }
-        //     // GeoGraphEdge(unsigned node_id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range):
-        //     //     node_id_{node_id}, emb_distance_(emb_distance), geo_distance_(geo_distance), available_range(range) {}
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     // inline unsigned GetNodeID() const { return node_id_; }
-        //     inline const std::vector<std::pair<float, float>> &GetRange() const { return available_range; }
-        //     inline float GetEmbDistance() const { return emb_distance_; }
-        //     inline float GetLocDistance() const { return geo_distance_; }
-
-        // private:
-        //     GeoGraphNode *node_;
-        //     // unsigned node_id_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     std::vector<std::pair<float, float>> available_range;
-        // };
-
-        // struct skyline_naive
-        // {
-        //     std::mutex lock;                          // 互斥锁 用于并发访问控制
-        //     std::vector<GeoGraphSimpleNeighbor> pool; // 存储邻居节点的优先队列 最小堆
-        //     unsigned M;                               // 记录pool的最大大小, 也就是candidate边数
-
-        //     std::vector<unsigned> nn_old;
-        //     std::vector<unsigned> nn_new;
-        //     std::vector<unsigned> rnn_old;
-        //     std::vector<unsigned> rnn_new;
-
-        //     skyline_naive() {}
-
-        //     skyline_naive(unsigned l, unsigned s)
-        //     {
-        //         M = l;
-        //         nn_new.resize(s * 2);
-        //         nn_new.reserve(s * 2);
-        //         // resize用于定义向量的实际大小（元素数量） 而reserve用于优化内存分配以应对向量大小的潜在增长
-        //         pool.reserve(l);
-        //     }
-
-        //     skyline_naive(unsigned l, unsigned s, std::mt19937 &rng, unsigned N)
-        //     {
-        //         M = s;
-        //         nn_new.resize(s * 2);
-        //         GenRandom(rng, &nn_new[0], (unsigned)nn_new.size(), N); // 还用随机数填充 nn_new
-        //         nn_new.reserve(s * 2);
-        //         pool.reserve(l);
-        //     }
-
-        //     skyline_naive(const skyline_naive &other)
-        //     {
-        //         M = other.M;
-        //         std::copy(other.nn_new.begin(), other.nn_new.end(), std::back_inserter(nn_new));
-        //         nn_new.reserve(other.nn_new.capacity());
-        //         pool.reserve(other.pool.capacity());
-        //     }
-
-        //     void findSkyline(std::vector<GeoGraphSimpleNeighbor> &points, std::vector<GeoGraphSimpleNeighbor> &skyline)
-        //     {
-        //         // Sort points by x-coordinate
-        //         // Sweep to find skyline
-        //         float max_emb_dis = std::numeric_limits<float>::max();
-        //         for (const auto &point : points)
-        //         {
-        //             if (point.emb_distance_ < max_emb_dis)
-        //             {
-        //                 skyline.push_back(point);
-        //                 max_emb_dis = point.emb_distance_;
-        //             }
-        //         }
-        //         // O(n)
-        //     }
-
-        //     // 比较函数，用于构建最小堆
-        //     // bool edist_priority(const GeoGraphSimpleNeighbor& a, const GeoGraphSimpleNeighbor& b) {
-        //     //     return a.emb_distance_ > b.emb_distance_;  // 注意: '>' 使得堆成为最小堆
-        //     // }
-
-        //     void insert(unsigned id, float e_dist, float s_dist)
-        //     {
-        //         // 方法用于向 pool 中插入新的邻居节点，如果新节点的距离小于 pool 中最远节点的距离，则替换之
-        //         //  pool 最大堆
-        //         LockGuard guard(lock);
-
-        //         for (unsigned i = 0; i < pool.size(); i++)
-        //         {
-        //             if (id == pool[i].id_)
-        //                 return;
-        //         }
-
-        //         if (pool.size() < M)
-        //         {
-        //             pool.push_back(GeoGraphSimpleNeighbor(id, e_dist, s_dist, true));
-        //             std::push_heap(pool.begin(), pool.end());
-        //         }
-        //         else
-        //         {
-        //             pool.push_back(GeoGraphSimpleNeighbor(id, e_dist, s_dist, true));
-        //             std::push_heap(pool.begin(), pool.end());
-        //             std::vector<GeoGraphSimpleNeighbor> tmp_pool;
-        //             while (tmp_pool.size() < M && pool.size())
-        //             {
-        //                 std::vector<GeoGraphSimpleNeighbor> candidate;
-        //                 findSkyline(pool, candidate);
-        //                 auto iterCandidate = candidate.begin();
-        //                 for (int i = 0; i < pool.size() && iterCandidate != candidate.end();)
-        //                 {
-        //                     if (pool[i].id_ == (*iterCandidate).id_)
-        //                     {
-        //                         pool.erase(pool.begin() + i);
-        //                         tmp_pool.push_back((*iterCandidate));
-        //                         ++iterCandidate;
-        //                     }
-        //                     else
-        //                     {
-        //                         i++;
-        //                     }
-        //                 }
-        //             }
-        //             tmp_pool.swap(pool);
-        //         }
-        //     }
-
-        //     template <typename C>
-        //     void join(C callback) const
-        //     {
-        //         for (unsigned const i : nn_new)
-        //         {
-        //             // 遍历 nn_new（新邻居）集合中的每个元素 i
-        //             for (unsigned const j : nn_new)
-        //             {
-        //                 // 再次遍历 nn_new 集合中的每个元素 j
-        //                 if (i < j)
-        //                 {
-        //                     callback(i, j);
-        //                     // 如果 i 小于 j（避免重复处理和自连接），调用 callback 函数处理这对邻居节点
-        //                 }
-        //             }
-        //             for (unsigned j : nn_old)
-        //             {
-        //                 callback(i, j);
-        //                 // 接着遍历 nn_old（旧邻居）集合中的每个元素 j，对每个新旧邻居对调用 callback 函数
-        //             }
-        //         }
-        //     }
-        //     // 似乎是NN Descent
-        // };
-
-        // struct skyline_set
-        // {
-        //     std::mutex lock;
-        //     std::vector<GeoGraphSimpleNeighbor> skyline_point;
-        //     // 假设是按照skyline_的地理信息排序的
-        //     skyline_set() {}
-        //     skyline_set(std::vector<GeoGraphSimpleNeighbor> &skyline)
-        //     {
-        //         skyline_point.swap(skyline);
-        //     }
-
-        //     int insert(std::vector<GeoGraphSimpleNeighbor> &skyline)
-        //     {
-        //         skyline_point.swap(skyline);
-        //         return 0;
-        //     }
-
-        //     int insert(unsigned id, float e_dist, float s_dist)
-        //     {
-        //         // three situation
-        //         // insert into this skyline
-        //         // dominate some points in the skyline
-        //         // be dominated by some points in the skyline
-        //         if (s_dist > skyline_point.back().geo_distance_ && e_dist > skyline_point.front().emb_distance_)
-        //         {
-        //             return -1;
-        //             // the insert point is dominated by all the point in the existing skyline
-        //             // not inserted
-        //         }
-        //         else if (s_dist < skyline_point.front().geo_distance_ && e_dist < skyline_point.back().emb_distance_)
-        //         {
-        //             return -2;
-        //             // the insert point dominates all the points in the existing skyline
-        //             // this can forms a better skyline
-        //             // inserted into the pool
-        //         }
-        //         else
-        //         {
-        //             unsigned left = 0, right = skyline_point.size() - 1;
-        //             unsigned K = right;
-        //             if (skyline_point[left].geo_distance_ > s_dist)
-        //             {
-        //                 if (skyline_point[left].emb_distance_ >= e_dist)
-        //                 {
-        //                     return -2;
-        //                     // the insert point dominates the first point
-        //                     // it will be inserted
-        //                 }
-        //                 else if (skyline_point[left].emb_distance_ < e_dist)
-        //                 {
-        //                     // the insert point will be inserted into the left position
-        //                     memmove((char *)&skyline_point[left + 1], &skyline_point[left], (K - left) * sizeof(GeoGraphSimpleNeighbor));
-        //                     skyline_point[left] = GeoGraphSimpleNeighbor(id, e_dist, s_dist, true);
-        //                     return left;
-        //                 }
-        //             }
-        //             if (skyline_point[right].geo_distance_ < s_dist)
-        //             {
-        //                 if (skyline_point[right].emb_distance_ <= e_dist)
-        //                 {
-        //                     return -1;
-        //                     // the insert point dominates the last point
-        //                     // it will be inserted
-        //                 }
-        //                 else if (skyline_point[right].emb_distance_ > e_dist)
-        //                 {
-        //                     // the insert point will be inserted into the right position
-        //                     skyline_point.emplace_back(GeoGraphSimpleNeighbor(id, e_dist, s_dist, true));
-        //                     return right;
-        //                 }
-        //             }
-        //             while (left < right - 1)
-        //             {
-        //                 int mid = (left + right) / 2;
-        //                 if (skyline_point[mid].geo_distance_ > s_dist)
-        //                     right = mid;
-        //                 else
-        //                     left = mid;
-        //             }
-        //             if (skyline_point[left].geo_distance_ < s_dist && skyline_point[left].emb_distance_ < e_dist)
-        //                 return -1;
-        //             if (s_dist < skyline_point[right].geo_distance_ && e_dist < skyline_point[right].emb_distance_)
-        //                 return -2;
-        //             memmove((char *)&skyline_point[right + 1], &skyline_point[right], (K - right) * sizeof(GeoGraphSimpleNeighbor));
-        //             skyline_point[right] = GeoGraphSimpleNeighbor(id, e_dist, s_dist, true);
-        //             return right;
-        //         }
-        //     }
-        // };
 
         struct skyline_descent
         {
             std::mutex lock; // 互斥锁 用于并发访问控制
-            // std::vector<std::vector<GeoGraphSimpleNeighbor>> pool;
-            std::vector<GeoGraphNNDescentNeighbor> pool;
-            std::vector<GeoGraphNNDescentNeighbor> outlier; // 存储邻居节点的优先队列 最小堆
-            unsigned M;                                     // 记录pool的最大大小, 也就是candidate边数
-            unsigned Q;                                     // 记录pool在update的过程中candidate set需要考虑的layer 也即quality result
+            std::vector<DEGNNDescentNeighbor> pool;
+            std::vector<DEGNNDescentNeighbor> outlier; // 存储邻居节点的优先队列 最小堆
+            unsigned M;                                // 记录pool的最大大小, 也就是candidate边数
+            unsigned Q;                                // 记录pool在update的过程中candidate set需要考虑的layer 也即quality result
             unsigned num_layer;
             unsigned use_range;
             // unsigned *pstart;
@@ -970,13 +644,8 @@ namespace stkq
             {
                 M = l;
                 Q = q;
-                // nn_new.resize(s * 2);
                 nn_new.reserve(s * 2);
-                // resize用于定义向量的实际大小（元素数量） 而reserve用于优化内存分配以应对向量大小的潜在增长
                 pool.reserve(4 * l * l);
-                // pool.reserve(4 * l * l);
-                // pool_size = 0;
-                // pstart = new unsigned[M](); // record the start node of each layer
             }
 
             skyline_descent(const skyline_descent &other)
@@ -986,58 +655,9 @@ namespace stkq
                 std::copy(other.nn_new.begin(), other.nn_new.end(), std::back_inserter(nn_new));
                 nn_new.reserve(other.nn_new.capacity());
                 pool.reserve(other.pool.capacity());
-                // nn_new.reserve(other.nn_new.capacity());
-                // pool.reserve(other.pool.capacity());
             }
-            // void findSkyline(std::vector<GeoGraphSimpleNeighbor> &points, std::vector<GeoGraphSimpleNeighbor> &skyline, std::vector<GeoGraphSimpleNeighbor> &remain_points)
-            // {
-            //     // Sort points by x-coordinate
-            //     // Sweep to find skyline
-            //     float max_emb_dis = std::numeric_limits<float>::max();
-            //     for (const auto &point : points)
-            //     {
-            //         if (point.emb_distance_ < max_emb_dis)
-            //         {
-            //             skyline.push_back(point);
-            //             max_emb_dis = point.emb_distance_;
-            //         }
-            //         else
-            //         {
-            //             remain_points.emplace_back(point);
-            //         }
-            //     }
-            //     // O(n)
-            // }
 
-            // void init_neighor(std::vector<GeoGraphSimpleNeighbor> &insert_points)
-            // {
-            //     LockGuard guard(lock);
-            //     std::vector<GeoGraphSimpleNeighbor> skyline_result;
-            //     std::vector<GeoGraphSimpleNeighbor> remain_points;
-            //     int l = 0;
-            //     while (insert_points.size())
-            //     {
-            //         findSkyline(insert_points, skyline_result, remain_points);
-            //         insert_points.swap(remain_points);
-            //         pool.push_back(skyline_result);
-            //         std::vector<GeoGraphSimpleNeighbor>().swap(skyline_result);
-            //         std::vector<GeoGraphSimpleNeighbor>().swap(remain_points);
-            //         l++;
-            //     }
-            //     for (int i = 0; i < l; i++)
-            //     {
-            //         for (int j = 0; j < pool[i].size(); j++)
-            //         {
-            //             pool_id_map[pool[i][j].id_] = true;
-            //         }
-            //     }
-            //     std::vector<unsigned>().swap(nn_new);
-            //     std::vector<unsigned>().swap(nn_old);
-            //     std::vector<unsigned>().swap(rnn_new);
-            //     std::vector<unsigned>().swap(rnn_old);
-            // }
-
-            void findSkyline(std::vector<GeoGraphNNDescentNeighbor> &points, std::vector<GeoGraphNNDescentNeighbor> &skyline, std::vector<GeoGraphNNDescentNeighbor> &remain_points)
+            void findSkyline(std::vector<DEGNNDescentNeighbor> &points, std::vector<DEGNNDescentNeighbor> &skyline, std::vector<DEGNNDescentNeighbor> &remain_points)
             {
                 // Sort points by x-coordinate
                 // Sweep to find skyline
@@ -1057,11 +677,11 @@ namespace stkq
                 // O(n)
             }
 
-            void init_neighor(std::vector<GeoGraphNNDescentNeighbor> &insert_points)
+            void init_neighor(std::vector<DEGNNDescentNeighbor> &insert_points)
             {
                 LockGuard guard(lock);
-                std::vector<GeoGraphNNDescentNeighbor> skyline_result;
-                std::vector<GeoGraphNNDescentNeighbor> remain_points;
+                std::vector<DEGNNDescentNeighbor> skyline_result;
+                std::vector<DEGNNDescentNeighbor> remain_points;
                 int l = 0;
                 while (!insert_points.empty())
                 {
@@ -1072,8 +692,8 @@ namespace stkq
                         pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l);
                     }
                     outlier.swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(remain_points);
+                    std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
+                    std::vector<DEGNNDescentNeighbor>().swap(remain_points);
                     l++;
                     // if (l >= Q)
                     // {
@@ -1091,9 +711,9 @@ namespace stkq
             void updateNeighbor()
             {
                 LockGuard guard(lock);
-                std::vector<GeoGraphNNDescentNeighbor> skyline_result;
-                std::vector<GeoGraphNNDescentNeighbor> remain_points;
-                std::vector<GeoGraphNNDescentNeighbor> candidate;
+                std::vector<DEGNNDescentNeighbor> skyline_result;
+                std::vector<DEGNNDescentNeighbor> remain_points;
+                std::vector<DEGNNDescentNeighbor> candidate;
                 candidate.clear();
                 candidate.swap(pool);
                 int l = 0;
@@ -1107,8 +727,8 @@ namespace stkq
                         pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, point.flag, l);
                     }
                     outlier.swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(remain_points);
+                    std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
+                    std::vector<DEGNNDescentNeighbor>().swap(remain_points);
                     l++;
                     // if (l >= Q)
                     // {
@@ -1117,385 +737,6 @@ namespace stkq
                 }
                 num_layer = l;
             }
-
-            // void insert(std::vector<GeoGraphSimpleNeighbor> &skyline_vector, std::vector<GeoGraphSimpleNeighbor> &been_dominated_objects, bool &inserted, unsigned id, float e_dist, float s_dist)
-            // {
-            //     // this insert try to insert a node and replicate find skyline results
-            //     for (int i = 0; i < skyline_vector.size(); i++)
-            //     {
-            //         if (skyline_vector[i].geo_distance_ < s_dist)
-            //         {
-            //             if (skyline_vector[i].emb_distance_ <= e_dist)
-            //             {
-            //                 return;
-            //             }
-            //         }
-            //         else
-            //         {
-            //             // skyline_vector[i].geo_distance_ >= s_dist
-            //             if (skyline_vector[i].emb_distance_ <= e_dist)
-            //             {
-            //                 // then just inserted it
-            //                 skyline_vector.insert(skyline_vector.begin() + i, GeoGraphSimpleNeighbor(id, e_dist, s_dist, true));
-            //                 inserted = true;
-            //                 return;
-            //             }
-            //             else
-            //             {
-            //                 inserted = true;
-            //                 for (size_t j = i; j < skyline_vector.size(); ++j)
-            //                 {
-            //                     if (skyline_vector[j].emb_distance_ > e_dist)
-            //                     {
-            //                         been_dominated_objects.push_back(skyline_vector[j]);
-            //                     }
-            //                     else
-            //                     {
-            //                         break; // 不符合条件，终止收集
-            //                     }
-            //                 }
-            //                 skyline_vector.erase(skyline_vector.begin() + i, skyline_vector.begin() + i + been_dominated_objects.size());
-            //                 skyline_vector.insert(skyline_vector.begin() + i, GeoGraphSimpleNeighbor(id, e_dist, s_dist, true));
-            //                 return;
-            //             }
-            //         }
-            //     }
-            // }
-
-            // void insert(std::vector<GeoGraphSimpleNeighbor> &skyline_vector, std::vector<GeoGraphSimpleNeighbor> &inserted_objects)
-            // {
-            //     // this insert try to insert a node and replicate find skyline results
-            //     std::vector<GeoGraphSimpleNeighbor> been_dominated_objects;
-            //     float pesudo_s_dist = inserted_objects.front().geo_distance_;
-            //     float pesudo_e_dist = inserted_objects.back().emb_distance_;
-            //     for (int i = 0; i < skyline_vector.size(); i++)
-            //     {
-            //         if (skyline_vector[i].geo_distance_ < pesudo_s_dist)
-            //         {
-            //             if (skyline_vector[i].emb_distance_ <= pesudo_e_dist)
-            //             {
-            //                 std::cout << "error for inserting vector of objects in line 1026" << std::endl;
-            //                 exit(1);
-            //             }
-            //             else
-            //             {
-            //                 continue;
-            //             }
-            //         }
-            //         else
-            //         {
-            //             // skyline_vector[i].geo_distance_ >= s_dist
-            //             if (skyline_vector[i].emb_distance_ <= pesudo_e_dist)
-            //             {
-            //                 // then just inserted it
-            //                 skyline_vector.insert(skyline_vector.begin() + i, inserted_objects.begin(), inserted_objects.end());
-            //                 break;
-            //             }
-            //             else
-            //             {
-            //                 int begin = i;
-            //                 // Collect dominated objects
-            //                 while (i < skyline_vector.size() && skyline_vector[i].emb_distance_ > pesudo_e_dist)
-            //                 {
-            //                     been_dominated_objects.push_back(skyline_vector[i]);
-            //                     ++i;
-            //                 }
-            //                 // Remove the dominated objects and insert new ones
-            //                 skyline_vector.erase(skyline_vector.begin() + begin, skyline_vector.begin() + i);
-            //                 skyline_vector.insert(skyline_vector.begin() + begin, inserted_objects.begin(), inserted_objects.end());
-            //                 break;
-            //             }
-            //             break;
-            //         }
-            //     }
-            //     inserted_objects.swap(been_dominated_objects);
-            //     return;
-            // }
-            // void insert(unsigned id, float e_dist, float s_dist)
-            // {
-            //     this is very slow
-            //     // 方法用于向 pool 中插入新的邻居节点，如果新节点的距离小于 pool 中最远节点的距离，则替换之
-            //     //  pool 最大堆
-            //     LockGuard guard(lock);
-            //     // for (unsigned i = 0; i < pool.size(); i++)
-            //     // {
-            //     //     if (id == pool[i].id_)
-            //     //         return;
-            //     // }
-            //     if (pool_id_map[id])
-            //     {
-            //         return;
-            //     }
-            //     bool inserted = false;
-            //     std::vector<GeoGraphSimpleNeighbor> been_dominated_objects;
-            //     int total_size = 0;
-            //     for (int i = 0; i < pool.size(); i++)
-            //     {
-            //         if (inserted == true)
-            //         {
-            //             if (been_dominated_objects.size() == 0)
-            //             {
-            //                 break;
-            //             }
-            //             else
-            //             {
-            //                 insert(pool[i], been_dominated_objects);
-            //             }
-            //         }
-            //         else
-            //         {
-            //             insert(pool[i], been_dominated_objects, inserted, id, e_dist, s_dist);
-            //         }
-            //         total_size = total_size + pool[i].size();
-            //         if (total_size >= M)
-            //         {
-            //             pool.resize(i + 1);
-            //         }
-            //     }
-
-            //     if (been_dominated_objects.size() != 0 && inserted && total_size < M)
-            //     {
-            //         pool.push_back(been_dominated_objects);
-            //     }
-            // }
-
-            // void insert(unsigned id, float e_dist, float s_dist)
-            // {
-            //     LockGuard guard(lock);
-            //     int insert_index = -1;
-            //     if (pool.size() >= M && num_layer > 1)
-            //     {
-            //         std::vector<int> deleteIndices;
-            //         for (int i = pool.size() - 1; i >= 0; i--)
-            //         {
-            //             if (pool[i].layer_ >= num_layer - 1)
-            //             {
-            //                 pool.erase(pool.begin() + i);
-            //             }
-            //         }
-            //         num_layer--;
-            //     }
-            //     int not_been_dominated_layer = num_layer, been_dominated_layer = -1;
-            //     GeoGraphNNDescentNeighbor inserted_neighbor = GeoGraphNNDescentNeighbor(id, e_dist, s_dist, true, -1);
-            //     std::vector<std::vector<int>> been_dominated_nodes(num_layer);
-
-            //     for (int i = 0; i < pool.size(); i++)
-            //     {
-            //         if (pool[i].id_ == id)
-            //         {
-            //             return; // 如果找到重复的ID，直接返回
-            //         }
-
-            //         if (pool[i].geo_distance_ < s_dist)
-            //         {
-            //             if (pool[i].emb_distance_ <= e_dist)
-            //             {
-            //                 been_dominated_layer = std::max(been_dominated_layer, pool[i].layer_);
-            //             }
-            //             if (been_dominated_layer == num_layer - 1)
-            //             {
-            //                 return;
-            //             }
-            //         }
-            //         else
-            //         {
-            //             not_been_dominated_layer = been_dominated_layer + 1;
-            //             if (insert_index == -1)
-            //             {
-            //                 insert_index = i; // 记录插入位置
-            //             }
-            //             if (pool[i].layer_ >= not_been_dominated_layer && pool[i].emb_distance_ >= e_dist) // here is the error 3
-            //             {
-            //                 been_dominated_nodes[pool[i].layer_].emplace_back(i);
-            //             }
-            //         }
-            //     }
-
-            //     not_been_dominated_layer = been_dominated_layer + 1;
-            //     if (insert_index == -1)
-            //     {
-            //         insert_index = pool.size();
-            //     }
-
-            //     inserted_neighbor.layer_ = not_been_dominated_layer;
-            //     float prune_s_dist = s_dist;
-            //     float prune_e_dist = e_dist;
-            //     for (int i = not_been_dominated_layer; i < been_dominated_nodes.size(); i++)
-            //     {
-            //         bool replaced = false;
-            //         int start_move_id = -1;
-            //         int end_move_id = -1;
-            //         if (been_dominated_nodes[i].size() == 0)
-            //             break;
-            //         else
-            //         {
-            //             for (int j = 0; j < been_dominated_nodes[i].size(); j++)
-            //             {
-            //                 if (pool[been_dominated_nodes[i][j]].geo_distance_ < prune_s_dist)
-            //                 {
-            //                     continue;
-            //                 }
-            //                 else if (pool[been_dominated_nodes[i][j]].emb_distance_ < prune_e_dist)
-            //                 {
-            //                     break;
-            //                 }
-            //                 else
-            //                 {
-            //                     if (start_move_id == -1)
-            //                     {
-            //                         start_move_id = been_dominated_nodes[i][j];
-            //                     }
-            //                     end_move_id = been_dominated_nodes[i][j];
-            //                     pool[end_move_id].layer_++;
-            //                     replaced = true;
-            //                     if (pool[end_move_id].layer_ == num_layer)
-            //                     {
-            //                         num_layer++;
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //         if (!replaced)
-            //         {
-            //             break;
-            //         }
-            //         prune_s_dist = pool[start_move_id].geo_distance_;
-            //         prune_e_dist = pool[end_move_id].emb_distance_;
-            //     }
-            //     pool.insert(pool.begin() + insert_index, inserted_neighbor);
-            //     return;
-            // }
-
-            // void insert(unsigned id, float e_dist, float s_dist)
-            // {
-            //     // this tries to maintain multiple layer skyline results
-            //     LockGuard guard(lock);
-            //     // the fasest so far
-            //     if (Visited_Set.find(id) != Visited_Set.end())
-            //     {
-            //         return;
-            //     }
-            //     Visited_Set.insert(id);
-
-            //     int insert_index = -1;
-            //     if (pool.size() >= M && num_layer > 1)
-            //     {
-            //         for (int i = pool.size() - 1; i >= 0; i--)
-            //         {
-            //             if (pool[i].layer_ >= num_layer - 1)
-            //             {
-            //                 pool.erase(pool.begin() + i);
-            //             }
-            //         }
-            //         num_layer--;
-            //     }
-
-            //     int not_been_dominated_layer = num_layer, been_dominated_layer = -1;
-
-            //     GeoGraphNNDescentNeighbor inserted_neighbor = GeoGraphNNDescentNeighbor(id, e_dist, s_dist, true, -1);
-            //     std::vector<std::vector<int>> been_dominated_nodes(num_layer);
-
-            //     int left = 0;
-            //     int right = pool.size() - 1;
-            //     if (pool[left].geo_distance_ > s_dist)
-            //     {
-            //         // insert position
-            //         left = -1;
-            //         right = 0;
-            //     }
-
-            //     if (pool[right].geo_distance_ < s_dist)
-            //     {
-            //         // insert position
-            //         left = right;
-            //         right++;
-            //     }
-
-            //     while (left < right - 1)
-            //     {
-            //         int mid = (left + right) / 2;
-            //         if (pool[mid].geo_distance_ < s_dist)
-            //             left = mid;
-            //         else
-            //             right = mid;
-            //     }
-
-            //     while (left >= 0)
-            //     {
-            //         if (pool[left].layer_ > been_dominated_layer)
-            //         {
-            //             if (pool[left].emb_distance_ <= e_dist)
-            //             {
-            //                 been_dominated_layer = std::max(been_dominated_layer, pool[left].layer_);
-            //             }
-            //             if (been_dominated_layer == num_layer - 1)
-            //                 return;
-            //         }
-            //         left--;
-            //     }
-            //     not_been_dominated_layer = been_dominated_layer + 1;
-            //     insert_index = right;
-            //     while (right < pool.size())
-            //     {
-            //         if (pool[right].layer_ >= not_been_dominated_layer && pool[right].emb_distance_ >= e_dist)
-            //         {
-            //             been_dominated_nodes[pool[right].layer_].emplace_back(right);
-            //         }
-            //         right++;
-            //     }
-            //     inserted_neighbor.layer_ = not_been_dominated_layer;
-            //     float prune_s_dist = s_dist;
-            //     float prune_e_dist = e_dist;
-            //     for (int i = not_been_dominated_layer; i < been_dominated_nodes.size(); i++)
-            //     {
-            //         bool replaced = false;
-            //         int start_move_id = -1;
-            //         int end_move_id = -1;
-            //         if (been_dominated_nodes[i].size() == 0)
-            //             break;
-            //         else
-            //         {
-            //             for (int j = 0; j < been_dominated_nodes[i].size(); j++)
-            //             {
-            //                 if (pool[been_dominated_nodes[i][j]].geo_distance_ < prune_s_dist)
-            //                 {
-            //                     continue;
-            //                 }
-            //                 else if (pool[been_dominated_nodes[i][j]].emb_distance_ < prune_e_dist)
-            //                 {
-            //                     break;
-            //                 }
-            //                 else
-            //                 {
-            //                     if (start_move_id == -1)
-            //                     {
-            //                         start_move_id = been_dominated_nodes[i][j];
-            //                     }
-            //                     end_move_id = been_dominated_nodes[i][j];
-            //                     pool[end_move_id].layer_++;
-            //                     replaced = true;
-            //                     if (pool[end_move_id].layer_ == num_layer)
-            //                     {
-            //                         num_layer++;
-            //                     }
-            //                     else if (pool[end_move_id].layer_ > num_layer)
-            //                     {
-            //                         std::cout << "line 1430 error" << std::endl;
-            //                         exit(1);
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //         if (!replaced)
-            //         {
-            //             break;
-            //         }
-            //         prune_s_dist = pool[start_move_id].geo_distance_;
-            //         prune_e_dist = pool[end_move_id].emb_distance_;
-            //     }
-            //     pool.insert(pool.begin() + insert_index, inserted_neighbor);
-            //     return;
-            // }
 
             void insert(unsigned id, float e_dist, float s_dist)
             {
@@ -1547,29 +788,9 @@ namespace stkq
             // 似乎是NN Descent
         };
 
-        // class GeoGraphNNDescentNeighborListNode
-        // {
-        // public:
-        //     int id_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     int layer_;
-        //     bool flag;
-        //     std::shared_ptr<GeoGraphNNDescentNeighbor> next_in_next_List;
-        //     std::shared_ptr<GeoGraphNNDescentNeighborListNode> prev;
-        //     std::shared_ptr<GeoGraphNNDescentNeighborListNode> next;
-        //     GeoGraphNNDescentNeighborListNode() = default;
-        //     GeoGraphNNDescentNeighborListNode(unsigned id, float emb_distance, float geo_distance, bool flag_, int l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(flag_), layer_(l)
-        //     {
-        //         next_in_next_List = NULL;
-        //         prev = NULL;
-        //         next = NULL;
-        //     }
-        // };
-
         struct skyline_queue
         {
-            std::vector<GeoGraphNNDescentNeighbor> pool;
+            std::vector<DEGNNDescentNeighbor> pool;
             unsigned M; // 记录pool的最大大小, 也就是candidate边数
             unsigned num_layer;
             skyline_queue() {}
@@ -1586,12 +807,12 @@ namespace stkq
                 pool.reserve(other.pool.capacity());
             }
 
-            float cross(const GeoGraphNNDescentNeighbor &O, const GeoGraphNNDescentNeighbor &A, const GeoGraphNNDescentNeighbor &B)
+            float cross(const DEGNNDescentNeighbor &O, const DEGNNDescentNeighbor &A, const DEGNNDescentNeighbor &B)
             {
                 return (A.geo_distance_ - O.geo_distance_) * (B.emb_distance_ - O.emb_distance_) - (A.emb_distance_ - O.emb_distance_) * (B.geo_distance_ - O.geo_distance_);
             }
 
-            void findConvexHull(std::vector<GeoGraphNNDescentNeighbor> &points, std::vector<GeoGraphNNDescentNeighbor> &convex_hull, std::vector<GeoGraphNNDescentNeighbor> &remain_points)
+            void findConvexHull(std::vector<DEGNNDescentNeighbor> &points, std::vector<DEGNNDescentNeighbor> &convex_hull, std::vector<DEGNNDescentNeighbor> &remain_points)
             {
                 // Build the lower hull
                 for (const auto &point : points)
@@ -1606,10 +827,10 @@ namespace stkq
                 // Remove the last point of the upper hull because it's the same as the first point of the lower hull
             }
 
-            void init_queue(std::vector<GeoGraphNNDescentNeighbor> &insert_points)
+            void init_queue(std::vector<DEGNNDescentNeighbor> &insert_points)
             {
-                std::vector<GeoGraphNNDescentNeighbor> skyline_result;
-                std::vector<GeoGraphNNDescentNeighbor> remain_points;
+                std::vector<DEGNNDescentNeighbor> skyline_result;
+                std::vector<DEGNNDescentNeighbor> remain_points;
                 int l = 0;
                 while (!insert_points.empty())
                 {
@@ -1620,14 +841,14 @@ namespace stkq
                     {
                         pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l);
                     }
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(remain_points);
+                    std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
+                    std::vector<DEGNNDescentNeighbor>().swap(remain_points);
                     l++;
                 }
                 num_layer = l;
             }
 
-            void findSkyline(std::vector<GeoGraphNNDescentNeighbor> &points, std::vector<GeoGraphNNDescentNeighbor> &skyline, std::vector<GeoGraphNNDescentNeighbor> &remain_points)
+            void findSkyline(std::vector<DEGNNDescentNeighbor> &points, std::vector<DEGNNDescentNeighbor> &skyline, std::vector<DEGNNDescentNeighbor> &remain_points)
             {
                 // Sort points by x-coordinate
                 // Sweep to find skyline
@@ -1649,9 +870,9 @@ namespace stkq
 
             void updateNeighbor(int &nk)
             {
-                std::vector<GeoGraphNNDescentNeighbor> skyline_result;
-                std::vector<GeoGraphNNDescentNeighbor> remain_points;
-                std::vector<GeoGraphNNDescentNeighbor> candidate;
+                std::vector<DEGNNDescentNeighbor> skyline_result;
+                std::vector<DEGNNDescentNeighbor> remain_points;
+                std::vector<DEGNNDescentNeighbor> candidate;
                 candidate.swap(pool);
                 int l = 0;
                 int k = 0;
@@ -1679,211 +900,16 @@ namespace stkq
                         }
                         k++;
                     }
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(skyline_result);
-                    std::vector<GeoGraphNNDescentNeighbor>().swap(remain_points);
+                    std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
+                    std::vector<DEGNNDescentNeighbor>().swap(remain_points);
                     l++;
                 }
                 num_layer = l;
             }
         };
-        // struct skyline_queue
-        // {
-        //     std::vector<std::shared_ptr<GeoGraphNNDescentNeighborListNode>> pool;
-        //     std::vector<std::shared_ptr<GeoGraphNNDescentNeighborListNode>> tail;
-        //     unsigned M; // 记录pool的最大大小, 也就是candidate边数
-        //     unsigned num_layer;
-        //     skyline_queue() {}
 
-        //     skyline_queue(unsigned l)
-        //     {
-        //         M = l;
-        //         pool.reserve(M);
-        //         tail.reserve(M);
-        //     }
-
-        //     skyline_queue(const skyline_queue &other)
-        //     {
-        //         M = other.M;
-        //         pool.reserve(other.pool.capacity());
-        //     }
-
-        //     void init_neighor(std::vector<GeoGraphNNDescentNeighbor> &points)
-        //     {
-        //         std::vector<GeoGraphNNDescentNeighbor> skyline_result;
-        //         std::vector<GeoGraphNNDescentNeighbor> remain_points;
-        //         int l = 0;
-        //         while (!points.empty())
-        //         {
-        //             findSkyline(points, skyline_result, remain_points);
-        //             points.swap(remain_points);
-        //             std::shared_ptr<GeoGraphNNDescentNeighborListNode> iter = pool[l];
-        //             for (auto &point : skyline_result)
-        //             {
-        //                 auto node = std::make_shared<GeoGraphNNDescentNeighborListNode>(point.id_, point.emb_distance_, point.geo_distance_, true, l);
-        //                 if (pool[l] == nullptr)
-        //                 {
-        //                     pool[l] = node; // 如果当前层级的第一个节点为空，将第一个节点指针指向当前节点
-        //                 }
-        //                 else
-        //                 {
-        //                     tail[l]->next = node;
-        //                     node->prev = tail[l];
-        //                 }
-        //                 tail[l] = node;
-        //             }
-        //             std::vector<GeoGraphNNDescentNeighbor>().swap(skyline_result);
-        //             std::vector<GeoGraphNNDescentNeighbor>().swap(remain_points);
-        //             l++;
-        //         }
-        //         num_layer = l;
-        //         for (int i = 0; i < num_layer - 1; i++)
-        //         {
-        //             auto it_i = pool[i];
-        //             auto it_next = pool[i + 1];
-        //             while (it_i != NULL && it_next != NULL)
-        //             {
-        //                 if (it_next->geo_distance_ > it_i->geo_distance_)
-        //                 {
-        //                     it_i->next_in_next_List = it_next;
-        //                     it_i = it_i->next;
-        //                 }
-        //                 else
-        //                 {
-        //                     it_next = it_next->next;
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     void findSkyline(std::vector<GeoGraphNNDescentNeighbor> &points, std::vector<GeoGraphNNDescentNeighbor> &skyline, std::vector<GeoGraphNNDescentNeighbor> &remain_points)
-        //     {
-        //         // Sort points by x-coordinate
-        //         // Sweep to find skyline
-        //         float max_emb_dis = std::numeric_limits<float>::max();
-        //         for (const auto &point : points)
-        //         {
-        //             if (point.emb_distance_ < max_emb_dis)
-        //             {
-        //                 skyline.push_back(point);
-        //                 max_emb_dis = point.emb_distance_;
-        //             }
-        //             else
-        //             {
-        //                 remain_points.emplace_back(point);
-        //             }
-        //         }
-        //         // O(n)
-        //     }
-
-        //     int insert(unsigned id, float e_dist, float s_dist)
-        //     {
-        //         int l = 0;
-        //         std::shared_ptr<GeoGraphNNDescentNeighborListNode> it = pool[0];
-        //         std::shared_ptr<GeoGraphNNDescentNeighborListNode> prev_it = nullptr;
-        //         while (l < num_layer)
-        //         {
-        //             // Find the correct insertion point
-        //             while (it != nullptr && it->geo_distance_ < s_dist)
-        //             {
-        //                 prev_it = it;
-        //                 it = it->next;
-        //             }
-
-        //             // Check if the current node can dominate the new node
-        //             if (prev_it != nullptr && prev_it->geo_distance_ < s_dist && prev_it->emb_distance_ < e_dist)
-        //             {
-        //                 // If we can't insert here, move to the next layer if possible
-        //                 l++;
-        //                 if (l >= num_layer)
-        //                 {
-        //                     return false; // Exit if no more layers are available
-        //                 }
-        //                 it = (prev_it->next_in_next_List) ? prev_it->next_in_next_List : tail[l];
-        //                 prev_it = (it) ? it->prev : tail[l]; // Set prev_it to it->prev if it is not nullptr, otherwise to tail[l]
-        //                 continue;
-        //             }
-
-        //             // Create and insert the new node
-        //             auto new_node = std::make_shared<GeoGraphNNDescentNeighborListNode>(id, e_dist, s_dist, true, l);
-        //             if (prev_it == nullptr)
-        //             {
-        //                 // Insert at the head
-        //                 pool[l] = new_node;
-        //                 new_node->next = it;
-        //                 if (it != nullptr)
-        //                 {
-        //                     it->prev = new_node;
-        //                 }
-        //             }
-        //             else
-        //             { // Insert in the middle or end
-        //                 new_node->next = prev_it->next;
-        //                 new_node->prev = prev_it;
-        //                 prev_it->next = new_node;
-        //                 if (new_node->next != nullptr)
-        //                 {
-        //                     new_node->next->prev = new_node;
-        //                 }
-        //             }
-
-        //             std::shared_ptr<GeoGraphNNDescentNeighborListNode> current = new_node->next;
-        //             while (current != nullptr && new_node->geo_distance_ <= current->geo_distance_ && new_node->emb_distance_ <= current->emb_distance_)
-        //             {
-        //                 // This node is dominated, move it to the appropriate position in the next layer
-        //                 auto dominated_node_begin = current;
-        //                 current = current->next; // Move forward in the list
-
-        //                 // Remove dominated node from the current layer
-        //                 if (dominated_node->prev)
-        //                 {
-        //                     dominated_node->prev->next = dominated_node->next;
-        //                 }
-        //                 if (dominated_node->next)
-        //                 {
-        //                     dominated_node->next->prev = dominated_node->prev;
-        //                 }
-
-        //                 // Re-insert dominated node in the next layer if possible
-        //                 if (l + 1 < num_layer)
-        //                 {
-        //                     insertDominatedNode(l + 1, dominated_node);
-        //                 }
-        //             }
-        //             if (it == nullptr && new_node->next == nullptr)
-        //             { // Update tail if necessary
-        //                 tail[l] = new_node;
-        //             }
-
-        //             return l; // Insertion successful
-        //         }
-
-        //         return -1; // Insertion failed in all layers
-        //     }
-        // };
-        typedef std::vector<skyline_descent> SkylineGeoGraph;
-        SkylineGeoGraph skylinegeograph_;
-
-        // typedef std::vector<std::vector<GeoGraphSimpleNeighbor>> InitGeoGraphGraph;
-        // InitGeoGraphGraph initgeograph;
-
-        // InitGeoGraphGraph &GetinitGeoGraph()
-        // {
-        //     return initgeograph;
-        // }
-
-        class GeoGraph_Convex
-        {
-        public:
-            GeoGraph_Convex(GeoGraphNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
-            inline float GetEmbDistance() const { return emb_distance_; }
-            inline float GetLocDistance() const { return geo_distance_; }
-            inline GeoGraphNode *GetNode() const { return node_; }
-
-        private:
-            GeoGraphNode *node_;
-            float emb_distance_;
-            float geo_distance_;
-        };
+        typedef std::vector<skyline_descent> SkylineDEG;
+        SkylineDEG skylineDEG_;
 
         template <typename KeyType, typename DataType>
         class MaxHeap
@@ -1948,238 +974,98 @@ namespace stkq
             std::vector<Item> v_;
         };
 
-        class GeoGraph_FurtherFirst
+        class DEG_FurtherFirst
         {
         public:
-            GeoGraph_FurtherFirst(GeoGraphNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance), dist_(dist) {}
+            DEG_FurtherFirst(DEGNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance), dist_(dist) {}
             inline float GetEmbDistance() const { return emb_distance_; }
             inline float GetLocDistance() const { return geo_distance_; }
             inline float GetDistance() const { return dist_; }
-            inline GeoGraphNode *GetNode() const { return node_; }
-            bool operator<(const GeoGraph_FurtherFirst &n) const
+            inline DEGNode *GetNode() const { return node_; }
+            bool operator<(const DEG_FurtherFirst &n) const
             {
                 return (dist_ < n.GetDistance());
                 // 距离较小的节点会被视为“优先级较小” 因此FurtherFirst用于构建最大堆
             }
 
         private:
-            GeoGraphNode *node_;
+            DEGNode *node_;
             float emb_distance_;
             float geo_distance_;
             float dist_;
         };
 
-        class GeoGraph_CloserFirst
+        class DEG_CloserFirst
         {
         public:
-            GeoGraph_CloserFirst(GeoGraphNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance), dist_(dist) {}
+            DEG_CloserFirst(DEGNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance), dist_(dist) {}
             inline float GetEmbDistance() const { return emb_distance_; }
             inline float GetLocDistance() const { return geo_distance_; }
             inline float GetDistance() const { return dist_; }
-            inline GeoGraphNode *GetNode() const { return node_; }
-            bool operator<(const GeoGraph_CloserFirst &n) const
+            inline DEGNode *GetNode() const { return node_; }
+            bool operator<(const DEG_CloserFirst &n) const
             {
                 return (dist_ > n.GetDistance());
                 // 距离较小的节点会被视为“优先级较高” 因此CloserFirst用于构建最小堆
             }
 
         private:
-            GeoGraphNode *node_;
+            DEGNode *node_;
             float emb_distance_;
             float geo_distance_;
             float dist_;
         };
 
-        class GeoGraph_GeoFurtherFirst
+        class DEG_GeoFurtherFirst
         {
         public:
-            GeoGraph_GeoFurtherFirst(GeoGraphNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
+            DEG_GeoFurtherFirst(DEGNode *node, float emb_distance, float geo_distance, float dist) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
             inline float GetEmbDistance() const { return emb_distance_; }
             inline float GetLocDistance() const { return geo_distance_; }
-            inline GeoGraphNode *GetNode() const { return node_; }
-            bool operator<(const GeoGraph_GeoFurtherFirst &n) const
+            inline DEGNode *GetNode() const { return node_; }
+            bool operator<(const DEG_GeoFurtherFirst &n) const
             {
                 return (geo_distance_ < n.GetLocDistance() || (geo_distance_ == n.GetLocDistance() && emb_distance_ < n.GetEmbDistance()));
                 // 距离较小的节点会被视为“优先级较小” 因此 FurtherFirst 用于构建最大堆
             }
 
         private:
-            GeoGraphNode *node_;
+            DEGNode *node_;
             float emb_distance_;
             float geo_distance_;
         };
 
-        class GeoGraph_GeoCloserFirst
+        class DEG_GeoCloserFirst
         {
         public:
-            GeoGraph_GeoCloserFirst(GeoGraphNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
+            DEG_GeoCloserFirst(DEGNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
             inline float GetEmbDistance() const { return emb_distance_; }
             inline float GetLocDistance() const { return geo_distance_; }
-            inline GeoGraphNode *GetNode() const { return node_; }
-            bool operator<(const GeoGraph_GeoCloserFirst &n) const
+            inline DEGNode *GetNode() const { return node_; }
+            bool operator<(const DEG_GeoCloserFirst &n) const
             {
                 return (geo_distance_ > n.GetLocDistance() || (geo_distance_ == n.GetLocDistance() && emb_distance_ > n.GetEmbDistance()));
                 // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
             }
 
         private:
-            GeoGraphNode *node_;
+            DEGNode *node_;
             float emb_distance_;
             float geo_distance_;
         };
 
-        GeoGraphNode *geograph_enterpoint_ = nullptr;
-        std::vector<GeoGraphNode *> geograph_nodes_;
-        std::vector<GeoGraphNode *> geograph_enterpoints;
-        std::vector<GeoGraphNNDescentNeighbor> geograph_enterpoints_skyeline;
+        DEGNode *DEG_enterpoint_ = nullptr;
+        std::vector<DEGNode *> DEG_nodes_;
+        std::vector<DEGNode *> DEG_enterpoints;
+        std::vector<DEGNNDescentNeighbor> DEG_enterpoints_skyeline;
 
         std::mutex enterpoint_mutex;
         std::vector<unsigned> enterpoint_set;
         unsigned rnn_size;
         float *emb_center, *loc_center;
-        // class Emb_FurtherFirst
-        // {
-        // public:
-        //     Emb_FurtherFirst(GeoGraphNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
-        //     inline float GetEmbDistance() const { return emb_distance_; }
-        //     inline float GetLocDistance() const { return geo_distance_; }
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     bool operator<(const Emb_FurtherFirst &n) const
-        //     {
-        //         return (emb_distance_ < n.GetEmbDistance());
-        //     }
-        // private:
-        //     GeoGraphNode *node_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
-        // };
-
-        // class Geo_CloserFirst
-        // {
-        // public:
-        //     Geo_CloserFirst(GeoGraphNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
-        //     inline float GetEmbDistance() const { return emb_distance_; }
-        //     inline float GetLocDistance() const { return geo_distance_; }
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     bool operator<(const Geo_CloserFirst &n) const
-        //     {
-        //         return (geo_distance_ > n.GetLocDistance());
-        //     }
-        // private:
-        //     GeoGraphNode *node_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
-        // };
-
-        // class Emb_CloserFirst
-        // {
-        // public:
-        //     Emb_CloserFirst(GeoGraphNode *node, float emb_distance, float geo_distance) : node_(node), emb_distance_(emb_distance), geo_distance_(geo_distance) {}
-        //     inline float GetEmbDistance() const { return emb_distance_; }
-        //     inline float GetLocDistance() const { return geo_distance_; }
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     bool operator<(const Emb_CloserFirst &n) const
-        //     {
-        //         return (emb_distance_ > n.GetEmbDistance());
-        //     }
-        // private:
-        //     GeoGraphNode *node_;
-        //     float emb_distance_;
-        //     float geo_distance_;
-        //     // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
-        // };
-
-        // class GeoGraphFurtherFirst
-        // {
-        // public:
-        //     GeoGraphFurtherFirst(GeoGraphNode *node, float distance) : node_(node), distance_(distance) {}
-        //     inline float GetDistance() const { return distance_; }
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     bool operator<(const GeoGraphFurtherFirst &n) const
-        //     {
-        //         return (distance_ < n.GetDistance());
-        //     }
-
-        // private:
-        //     GeoGraphNode *node_;
-        //     float distance_;
-        //     // 距离较小的节点会被视为“优先级较低” 因此 FurtherFirst 实际上是用于构建最大堆的
-        // };
-
-        // class GeoGraphCloserFirst
-        // {
-        // public:
-        //     GeoGraphCloserFirst(GeoGraphNode *node, float distance) : node_(node), distance_(distance) {}
-        //     inline float GetDistance() const { return distance_; }
-        //     inline GeoGraphNode *GetNode() const { return node_; }
-        //     bool operator<(const GeoGraphCloserFirst &n) const
-        //     {
-        //         return (distance_ > n.GetDistance());
-        //     }
-
-        // private:
-        //     GeoGraphNode *node_;
-        //     float distance_;
-        //     // 距离较小的节点会被视为“优先级较高” 因此 CloserFirst 用于构建最小堆
-        // };
-
-        // struct GeoGraphSimpleNeighbor
-        // {
-        //     unsigned id_;
-        //     float distance_;
-        //     // float geo_distance;
-
-        //     GeoGraphSimpleNeighbor() = default;
-        //     GeoGraphSimpleNeighbor(unsigned id, float distance) : id_{id}, distance_{distance} {}
-
-        //     inline bool operator<(const GeoGraphSimpleNeighbor &other) const
-        //     {
-        //         return distance_ > other.distance_;
-        //     }
-        // };
-
-        // typedef typename std::pair<GeoGraphNode *, float> Geo_IdDistancePair;
-        // struct GeoIdDistancePairMinHeapComparer
-        // {
-        //     bool operator()(const Geo_IdDistancePair &p1, const Geo_IdDistancePair &p2) const
-        //     {
-        //         return p1.second > p2.second;
-        //     }
-        // };
-        // typedef typename boost::heap::d_ary_heap<Geo_IdDistancePair, boost::heap::arity<4>, boost::heap::compare<GeoIdDistancePairMinHeapComparer>> GeoIdDistancePairMinHeap;
-
-        // class GeoSubArea{
-        //     // Mbr mbr;
-        //     public:
-        //         std::vector<unsigned> objects_;
-        //         unsigned original_size = 0;
-        //         float* center_coord = new float[2]();
-        //         GeoGraphNode *GeoSubGraph_enterpoint_ = nullptr;
-        //         std::vector<GeoGraphNode *> GeoSubGraph_nodes_;
-
-        //         GeoSubArea(std::vector<unsigned> &objects, float *baseLocData)
-        //         {
-        //             center_coord[0] = 0;
-        //             center_coord[1] = 0;
-        //             for (int i = 0; i < objects.size(); i++)
-        //             {
-        //                 objects_.emplace_back(objects[i]);
-        //                 center_coord[0] = center_coord[0] + baseLocData[objects[i] * 2];
-        //                 center_coord[1] = center_coord[1] + baseLocData[objects[i] * 2 + 1];
-        //             }
-        //             original_size = objects_.size();
-        //             center_coord[0] = center_coord[0] / objects.size();
-        //             center_coord[1] = center_coord[1] / objects.size();
-        //         }
-
-        //         inline std::vector<unsigned> &GetObjects() { return objects_; }
-        //         inline void add_object(unsigned object_id){ objects_.push_back(object_id);}
-        // };
     };
 
-    class Index : public NNDescent, public NSW, public HNSW, public SSG, public NSG, public GEOGRAPH
+    class Index : public NNDescent, public NSW, public HNSW, public SSG, public NSG, public DEG, public baseline4
     {
     public:
         explicit Index(float max_emb_dist, float max_spatial_dist)
@@ -2330,6 +1216,16 @@ namespace stkq
         void setQueryLocData(float *queryLocData)
         {
             query_loc_data_ = queryLocData;
+        }
+
+        float *getQueryWeightData() const
+        {
+            return query_alpha_;
+        }
+
+        void setQueryWeightData(float *queryWeightData)
+        {
+            query_alpha_ = queryWeightData;
         }
 
         unsigned int *getGroundData() const
@@ -2507,9 +1403,9 @@ namespace stkq
             return final_graph_;
         }
 
-        SkylineGeoGraph &getSkylineGraph()
+        SkylineDEG &getSkylineGraph()
         {
-            return skylinegeograph_;
+            return skylineDEG_;
         }
 
         LoadGraph &getLoadGraph()
@@ -2601,7 +1497,7 @@ namespace stkq
         bool debug = false;
 
     private:
-        float *base_emb_data_, *base_loc_data_, *query_emb_data_, *query_loc_data_;
+        float *base_emb_data_, *base_loc_data_, *query_emb_data_, *query_loc_data_, *query_alpha_;
         unsigned *ground_data_;
 
         unsigned base_len_, query_len_, ground_len_;
@@ -2636,101 +1532,3 @@ namespace stkq
 }
 
 #endif
-
-// if (pool.size() >= M)
-// {
-//     for (auto it = pool.begin(); it != pool.end();)
-//     {
-//         if (it->layer_ >= num_layer - 1)
-//         {
-//             it = pool.erase(it);
-//         }
-//         else
-//         {
-//             ++it;
-//         }
-//     }
-//     num_layer--;
-// }
-
-// std::vector<std::vector<std::list<GeoGraphNNDescentNeighbor>::iterator>> been_dominated_nodes(num_layer);
-
-// for (auto it = pool.begin(); it != pool.end(); it++)
-// {
-//     if (it->id_ == id)
-//     {
-//         return; // 如果找到重复的ID，直接返回
-//     }
-
-//     if (it->geo_distance_ < s_dist)
-//     {
-//         if (it->emb_distance_ <= e_dist)
-//         {
-//             been_dominated_layer = std::max(been_dominated_layer, it->layer_);
-//         }
-//         if (been_dominated_layer == num_layer - 1)
-//         {
-//             return;
-//         }
-//     }
-//     else
-//     {
-//         not_been_dominated_layer = been_dominated_layer + 1;
-//         if (insert_idx == pool.end())
-//         {
-//             insert_idx = it; // 记录插入位置
-//         }
-//         if (it->layer_ >= not_been_dominated_layer && it->emb_distance_ >= e_dist)
-//         {
-//             been_dominated_nodes[it->layer_].emplace_back(it);
-//         }
-//     }
-// }
-// not_been_dominated_layer = been_dominated_layer + 1;
-// inserted_neighbor.layer_ = not_been_dominated_layer;
-// float prune_s_dist = s_dist;
-// float prune_e_dist = e_dist;
-// for (int i = not_been_dominated_layer; i < been_dominated_nodes.size(); i++)
-// {
-//     bool replaced = false;
-//     auto start_move_id = pool.end();
-//     auto end_move_id = pool.end();
-//     if (been_dominated_nodes[i].size() == 0)
-//         break;
-//     else
-//     {
-//         for (int j = 0; j < been_dominated_nodes[i].size(); j++)
-//         {
-//             if (been_dominated_nodes[i][j]->geo_distance_ < prune_s_dist)
-//             {
-//                 continue;
-//             }
-//             else if (been_dominated_nodes[i][j]->emb_distance_ < prune_e_dist)
-//             {
-//                 break;
-//             }
-//             else
-//             {
-//                 if (start_move_id == pool.end())
-//                 {
-//                     start_move_id = been_dominated_nodes[i][j];
-//                 }
-//                 end_move_id = been_dominated_nodes[i][j];
-//                 end_move_id->layer_++;
-//                 replaced = true;
-//                 if (end_move_id->layer_ == num_layer)
-//                 {
-//                     num_layer++;
-//                 }
-//             }
-//         }
-//     }
-//     if (!replaced)
-//     {
-//         break;
-//     }
-//     prune_s_dist = start_move_id->geo_distance_;
-//     prune_e_dist = end_move_id->emb_distance_;
-// }
-// pool.insert(insert_idx, inserted_neighbor);
-// return;
