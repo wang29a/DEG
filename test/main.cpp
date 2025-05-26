@@ -2,7 +2,6 @@
 #include <set_para.h>
 #include <iostream>
 
-
 void HNSW(stkq::Parameters &parameters)
 {
     const unsigned num_threads = parameters.get<unsigned>("n_threads");
@@ -65,7 +64,6 @@ void baseline1(stkq::Parameters &parameters)
         builder->peak_memory_footprint();
         builder->load_graph(stkq::TYPE::INDEX_HNSW, &graph_file[0]);
         builder->peak_memory_footprint();
-
         builder->search(stkq::TYPE::SEARCH_ENTRY_NONE, stkq::TYPE::ROUTER_HNSW, stkq::TYPE::L_SEARCH_ASCEND, parameters);
         builder->peak_memory_footprint();
     }
@@ -157,7 +155,7 @@ void baseline3(stkq::Parameters &parameters)
         builder_2->load(&base_emb_path[0], &base_loc_path[0], &query_emb_path[0], &query_loc_path[0], &query_alpha_path[0], &ground_path[0], parameters)
             ->init(stkq::INIT_HNSW)
             ->save_graph(stkq::TYPE::INDEX_HNSW, &graph_file_2[0]);
-        builder->set_end_time();           
+        builder->set_end_time();
         std::cout << "Build cost: " << builder->GetBuildTime().count() << "s" << std::endl;
     }
 
@@ -196,7 +194,7 @@ void baseline4(stkq::Parameters &parameters)
         // build
         builder->load(&base_emb_path[0], &base_loc_path[0], &query_emb_path[0], &query_loc_path[0], &query_alpha_path[0], &ground_path[0], parameters)
             ->init(stkq::INIT_BS4)
-            ->save_graph(stkq::TYPE::INDEX_BS4, &graph_file[0]);    
+            ->save_graph(stkq::TYPE::INDEX_BS4, &graph_file[0]);
         std::cout << "Build cost: " << builder->GetBuildTime().count() << "s" << std::endl;
     }
 
@@ -233,6 +231,7 @@ void DEG(stkq::Parameters &parameters)
             ->save_graph(stkq::TYPE::INDEX_DEG, &graph_file[0]);
         std::cout << "Build cost: " << builder->GetBuildTime().count() << "s" << std::endl;
     }
+
     else if (parameters.get<std::string>("exc_type") == "search")
     {
         // search

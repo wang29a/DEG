@@ -32,7 +32,7 @@ namespace stkq
             delete final_index_2;
         }
 
-        IndexBuilder *load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *ground_file, char *query_alpha, Parameters &parameters, bool dual=false);
+        IndexBuilder *load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *query_alpha_file, char *ground_file, Parameters &parameters, bool dual = false);
 
         IndexBuilder *init(TYPE type, bool debug = false);
 
@@ -41,7 +41,6 @@ namespace stkq
         IndexBuilder *load_graph(TYPE type, char *graph_file);
 
         IndexBuilder *load_graph(TYPE type, char *graph_file_1, char *graph_file_2);
-
 
         IndexBuilder *refine(TYPE type, bool debug);
 
@@ -59,11 +58,13 @@ namespace stkq
 
         void findRoot(boost::dynamic_bitset<> &flag, std::vector<unsigned> &root);
 
-        void set_begin_time(){
+        void set_begin_time()
+        {
             s = std::chrono::high_resolution_clock::now();
         }
 
-        void set_end_time(){
+        void set_end_time()
+        {
             e = std::chrono::high_resolution_clock::now();
         }
 

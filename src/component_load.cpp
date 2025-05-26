@@ -66,7 +66,7 @@ namespace stkq
         // 计算数据数量
         num = (unsigned)(f_size / (dim + 1) / 4);
 
-        long long total_size = static_cast<long long>(num) * dim;
+        size_t total_size = (size_t)num * dim;
         // 分配内存
         try
         {

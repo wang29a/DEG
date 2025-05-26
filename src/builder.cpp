@@ -105,7 +105,6 @@ namespace stkq
         return this;
     }
 
-
     IndexBuilder *IndexBuilder::save_graph(TYPE type, char *graph_file)
     {
 
@@ -420,12 +419,12 @@ namespace stkq
                     unsigned range_size;
                     in.read((char *)&range_size, sizeof(unsigned));
                     std::vector<std::pair<int8_t, int8_t>> use_range;
-                    use_range.reserve(range_size+1);                    
+                    use_range.reserve(range_size + 1);
                     for (unsigned t = 0; t < range_size; t++)
                     {
                         int8_t range_start, range_end;
                         in.read((char *)&range_start, sizeof(int8_t));
-                        in.read((char *)&range_end, sizeof(int8_t));                        
+                        in.read((char *)&range_end, sizeof(int8_t));
                         use_range.push_back(std::make_pair(range_start, range_end));
                     }
                     neighbors.push_back(Index::DEGSimpleNeighbor(neighbor_id, use_range));
@@ -1041,178 +1040,8 @@ namespace stkq
                 // float acc = 1 - (float)cnt / (final_index_->getGroundLen() * K);
                 float acc = recall / final_index_->getQueryLen();
                 std::cout << K << " NN accuracy: " << acc << std::endl;
-                // exit(1);
             }
         }
-        //     if (acc_set - acc <= 0)
-        //     {
-        //         if (L_min > L)
-        //             L_min = L;
-        //         if (L == K || L_sl == 1)
-        //         {
-        //             break;
-        //         }
-        //         else
-        //         {
-        //             if (flag == false)
-        //             {
-        //                 L_sl < 0 ? L_sl-- : L_sl++;
-        //                 flag = true;
-        //             }
-
-        //             L_sl /= 2;
-
-        //             if (L_sl == 0)
-        //             {
-        //                 break;
-        //             }
-        //             L_sl < 0 ? L_sl : L_sl = -L_sl;
-        //         }
-        //     }
-        //     else
-        //     {
-        //         if (L_min < L)
-        //             break;
-        //         L_sl = (int)(sg * (acc_set - acc));
-        //         if (L_sl == 0)
-        //             L_sl++;
-        //         flag = false;
-        //     }
-        //     L += L_sl;
-        //     if (visited.count(L))
-        //     {
-        //         break;
-        //     }
-        //     else
-        //     {
-        //         visited.insert(L);
-        //     }
-        // }
-        // std::cout << "L_min: " << L_min << std::endl;
-        // }
-        // else if (L_type == L_SEARCH_ASCEND)
-        // {
-        //     unsigned L_st = 5;
-        //     unsigned L_st2 = 8;
-        //     for (unsigned i = 0; i < 10; i++)
-        //     {
-        //         unsigned L = L_st + L_st2;
-        //         L_st = L_st2;
-        //         L_st2 = L;
-        //         std::cout << "SEARCH_L : " << L << std::endl;
-        //         if (L < K)
-        //         {
-        //             std::cout << "search_L cannot be smaller than search_K! " << std::endl;
-        //             exit(-1);
-        //         }
-
-        //         final_index_->getParam().set<unsigned>("L_search", L);
-
-        //         auto s1 = std::chrono::high_resolution_clock::now();
-
-        //         res.clear();
-        //         res.resize(final_index_->getBaseLen());
-
-        //         for (unsigned i = 0; i < final_index_->getQueryLen(); i++)
-        //         {
-        //             std::vector<Index::Neighbor> pool;
-        //             a->SearchEntryInner(i, pool);
-        //             b->RouteInner(i, pool, res[i]);
-        //         }
-
-        //         auto e1 = std::chrono::high_resolution_clock::now();
-        //         std::chrono::duration<double> diff = e1 - s1;
-        //         std::cout << "search time: " << diff.count() << "\n";
-        //         // float speedup = (float)(index_->n_ * query_num) / (float)distcount;
-        //         std::cout << "DistCount: " << final_index_->getDistCount() << std::endl;
-        //         std::cout << "HopCount: " << final_index_->getHopCount() << std::endl;
-        //         final_index_->resetDistCount();
-        //         final_index_->resetHopCount();
-        //         // int cnt = 0;
-        //         float recall = 0;
-        //         for (unsigned i = 0; i < final_index_->getQueryLen(); i++)
-        //         {
-        //             if (res[i].size() == 0)
-        //                 continue;
-        //             float tmp_recall = 0;
-        //             float cnt = 0;
-        //             for (unsigned j = 0; j < K; j++)
-        //             {
-        //                 unsigned k = 0;
-        //                 for (; k < K; k++)
-        //                 {
-        //                     if (res[i][j] == final_index_->getGroundData()[i * final_index_->getGroundDim() + k])
-        //                         break;
-        //                 }
-        //                 if (k == K)
-        //                     cnt++;
-        //             }
-        //             tmp_recall = (float)(K - cnt) / (float)K;
-        //             recall = recall + tmp_recall;
-        //         }
-        //         // float acc = 1 - (float)cnt / (final_index_->getGroundLen() * K);
-        //         float acc = recall / final_index_->getQueryLen();
-        //         std::cout << K << " NN accuracy: " << acc << std::endl;
-        //     }
-        // }
-        // else if (L_type == L_SEARCH_ASSIGN)
-        // {
-
-        //     unsigned L = final_index_->getParam().get<unsigned>("L_search");
-        //     std::cout << "SEARCH_L : " << L << std::endl;
-        //     if (L < K)
-        //     {
-        //         std::cout << "search_L cannot be smaller than search_K! " << std::endl;
-        //         exit(-1);
-        //     }
-
-        //     auto s1 = std::chrono::high_resolution_clock::now();
-
-        //     res.clear();
-        //     res.resize(final_index_->getBaseLen());
-
-        //     for (unsigned i = 0; i < final_index_->getQueryLen(); i++)
-        //     {
-        //         // pool.clear();
-        //         // if (i == 5070) continue; // only for hnsw search on glove-100
-        //         std::vector<Index::Neighbor> pool;
-
-        //         a->SearchEntryInner(i, pool);
-
-        //         b->RouteInner(i, pool, res[i]);
-        //     }
-
-        //     auto e1 = std::chrono::high_resolution_clock::now();
-        //     std::chrono::duration<double> diff = e1 - s1;
-        //     std::cout << "search time: " << diff.count() << "\n";
-
-        //     // float speedup = (float)(index_->n_ * query_num) / (float)distcount;
-        //     std::cout << "DistCount: " << final_index_->getDistCount() << std::endl;
-        //     std::cout << "HopCount: " << final_index_->getHopCount() << std::endl;
-        //     final_index_->resetDistCount();
-        //     final_index_->resetHopCount();
-        //     int cnt = 0;
-        //     for (unsigned i = 0; i < final_index_->getGroundLen(); i++)
-        //     {
-        //         if (res[i].size() == 0)
-        //             continue;
-        //         for (unsigned j = 0; j < K; j++)
-        //         {
-        //             unsigned k = 0;
-        //             for (; k < K; k++)
-        //             {
-        //                 if (res[i][j] == final_index_->getGroundData()[i * final_index_->getGroundDim() + k])
-        //                     break;
-        //             }
-        //             if (k == K)
-        //                 cnt++;
-        //         }
-        //     }
-
-        //     float acc = 1 - (float)cnt / (final_index_->getGroundLen() * K);
-        //     std::cout << K << " NN accuracy: " << acc << std::endl;
-        // }
-
         e = std::chrono::high_resolution_clock::now();
         std::cout << "__SEARCH FINISH__" << std::endl;
 

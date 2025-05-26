@@ -32,12 +32,12 @@ namespace stkq
                         continue;
                     flags[id] = 1;
 
-                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + query * index->getBaseEmbDim(),
-                                                             index->getBaseEmbData() + id * index->getBaseEmbDim(),
+                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)query * index->getBaseEmbDim(),
+                                                             index->getBaseEmbData() + (size_t)id * index->getBaseEmbDim(),
                                                              index->getBaseEmbDim());
 
-                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + query * index->getBaseLocDim(),
-                                                             index->getBaseLocData() + id * index->getBaseLocDim(),
+                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)query * index->getBaseLocDim(),
+                                                             index->getBaseLocData() + (size_t)id * index->getBaseLocDim(),
                                                              index->getBaseLocDim());
 
                     float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
@@ -100,8 +100,8 @@ namespace stkq
         float e_d, s_d;
         if (alpha != 0)
         {
-            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + query * index->getBaseEmbDim(),
-                                               index->getBaseEmbData() + cur_node->GetId() * index->getBaseEmbDim(),
+            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)query * index->getBaseEmbDim(),
+                                               index->getBaseEmbData() + (size_t)cur_node->GetId() * index->getBaseEmbDim(),
                                                index->getBaseEmbDim());
         }
         else
@@ -111,8 +111,8 @@ namespace stkq
 
         if (alpha != 1)
         {
-            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + query * index->getBaseLocDim(),
-                                               index->getBaseLocData() + cur_node->GetId() * index->getBaseLocDim(),
+            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)query * index->getBaseLocDim(),
+                                               index->getBaseLocData() + (size_t)cur_node->GetId() * index->getBaseLocDim(),
                                                index->getBaseLocDim());
         }
         else
@@ -151,8 +151,8 @@ namespace stkq
 
                         if (alpha != 0)
                         {
-                            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + query * index->getBaseEmbDim(),
-                                                               index->getBaseEmbData() + (*iter)->GetId() * index->getBaseEmbDim(),
+                            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)query * index->getBaseEmbDim(),
+                                                               index->getBaseEmbData() + (size_t)(*iter)->GetId() * index->getBaseEmbDim(),
                                                                index->getBaseEmbDim());
                         }
                         else
@@ -162,8 +162,8 @@ namespace stkq
                         if (alpha != 1)
                         {
 
-                            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + query * index->getBaseLocDim(),
-                                                               index->getBaseLocData() + (*iter)->GetId() * index->getBaseLocDim(),
+                            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)query * index->getBaseLocDim(),
+                                                               index->getBaseLocData() + (size_t)(*iter)->GetId() * index->getBaseLocDim(),
                                                                index->getBaseLocDim());
                         }
                         else
@@ -227,8 +227,8 @@ namespace stkq
         float e_d, s_d;
         if (alpha != 0)
         {
-            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                               index->getBaseEmbData() + enterpoint->GetId() * index->getBaseEmbDim(),
+            e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                               index->getBaseEmbData() + (size_t)enterpoint->GetId() * index->getBaseEmbDim(),
                                                index->getBaseEmbDim());
         }
         else
@@ -239,8 +239,8 @@ namespace stkq
         if (alpha != 1)
         {
 
-            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                               index->getBaseLocData() + enterpoint->GetId() * index->getBaseLocDim(),
+            s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                               index->getBaseLocData() + (size_t)enterpoint->GetId() * index->getBaseLocDim(),
                                                index->getBaseLocDim());
         }
         else
@@ -276,8 +276,8 @@ namespace stkq
                     visited_list->MarkAsVisited(id);
                     if (alpha != 0)
                     {
-                        e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                           index->getBaseEmbData() + neighbor->GetId() * index->getBaseEmbDim(),
+                        e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                           index->getBaseEmbData() + (size_t)neighbor->GetId() * index->getBaseEmbDim(),
                                                            index->getBaseEmbDim());
                     }
                     else
@@ -286,8 +286,8 @@ namespace stkq
                     }
                     if (alpha != 1)
                     {
-                        s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                           index->getBaseLocData() + neighbor->GetId() * index->getBaseLocDim(),
+                        s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                           index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
                                                            index->getBaseLocDim());
                     }
                     else
@@ -613,14 +613,14 @@ namespace stkq
         {
             Index::DEGNode *cur_node = index->DEG_nodes_[index->enterpoint_set[i]];
 
-            float cur_e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                         index->getBaseEmbData() + cur_node->GetId() * index->getBaseEmbDim(),
+            float cur_e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                         index->getBaseEmbData() + (size_t)cur_node->GetId() * index->getBaseEmbDim(),
                                                          index->getBaseEmbDim());
 
             index->addDistCount();
 
-            float cur_s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                         index->getBaseLocData() + cur_node->GetId() * index->getBaseLocDim(),
+            float cur_s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                         index->getBaseLocData() + (size_t)cur_node->GetId() * index->getBaseLocDim(),
                                                          index->getBaseLocDim());
             index->addDistCount();
 
@@ -698,8 +698,8 @@ namespace stkq
                             {
                                 float threshold = result.top().GetDistance();
 
-                                float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                                         index->getBaseLocData() + neighbor_id * index->getBaseLocDim(),
+                                float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                                         index->getBaseLocData() + (size_t)neighbor_id * index->getBaseLocDim(),
                                                                          index->getBaseLocDim());
 
                                 if ((1 - alpha) * s_d >= threshold)
@@ -707,8 +707,8 @@ namespace stkq
                                     continue;
                                 }
 
-                                float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                                         index->getBaseEmbData() + neighbor_id * index->getBaseEmbDim(),
+                                float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                                         index->getBaseEmbData() + (size_t)neighbor_id * index->getBaseEmbDim(),
                                                                          index->getBaseEmbDim());
                                 index->addDistCount();
 
@@ -728,8 +728,8 @@ namespace stkq
 
                                 if (alpha <= 0.5)
                                 {
-                                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                                             index->getBaseLocData() + neighbor_id * index->getBaseLocDim(),
+                                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                                             index->getBaseLocData() + (size_t)neighbor_id * index->getBaseLocDim(),
                                                                              index->getBaseLocDim());
 
                                     if ((1 - alpha) * s_d >= threshold)
@@ -737,8 +737,8 @@ namespace stkq
                                         continue;
                                     }
 
-                                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                                             index->getBaseEmbData() + neighbor_id * index->getBaseEmbDim(),
+                                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                                             index->getBaseEmbData() + (size_t)neighbor_id * index->getBaseEmbDim(),
                                                                              index->getBaseEmbDim());
                                     index->addDistCount();
 
@@ -754,8 +754,8 @@ namespace stkq
                                 }
                                 else
                                 {
-                                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                                             index->getBaseEmbData() + neighbor_id * index->getBaseEmbDim(),
+                                    float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                                             index->getBaseEmbData() + (size_t)neighbor_id * index->getBaseEmbDim(),
                                                                              index->getBaseEmbDim());
 
                                     if (alpha * e_d >= threshold)
@@ -763,8 +763,8 @@ namespace stkq
                                         continue;
                                     }
 
-                                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                                             index->getBaseLocData() + neighbor_id * index->getBaseLocDim(),
+                                    float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                                             index->getBaseLocData() + (size_t)neighbor_id * index->getBaseLocDim(),
                                                                              index->getBaseLocDim());
 
                                     index->addDistCount();
@@ -783,12 +783,12 @@ namespace stkq
                         }
                         else
                         {
-                            float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + qnode * index->getBaseLocDim(),
-                                                                     index->getBaseLocData() + neighbor_id * index->getBaseLocDim(),
+                            float s_d = index->get_S_Dist()->compare(index->getQueryLocData() + (size_t)qnode * index->getBaseLocDim(),
+                                                                     index->getBaseLocData() + (size_t)neighbor_id * index->getBaseLocDim(),
                                                                      index->getBaseLocDim());
 
-                            float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + qnode * index->getBaseEmbDim(),
-                                                                     index->getBaseEmbData() + neighbor_id * index->getBaseEmbDim(),
+                            float e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
+                                                                     index->getBaseEmbData() + (size_t)neighbor_id * index->getBaseEmbDim(),
                                                                      index->getBaseEmbDim());
                             float d = alpha * e_d + (1 - alpha) * s_d;
                             result.emplace(index->DEG_nodes_[neighbor_id], e_d, s_d, d);

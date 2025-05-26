@@ -4,38 +4,43 @@
 
 #include "component.h"
 
-namespace stkq {
-    void ComponentSearchEntryCentroid::SearchEntryInner(unsigned int query, std::vector<Index::Neighbor> &pool) {
+namespace stkq
+{
+    void ComponentSearchEntryCentroid::SearchEntryInner(unsigned int query, std::vector<Index::Neighbor> &pool)
+    {
         const auto L = index->getParam().get<unsigned>("L_search");
         pool.reserve(L + 1);
         std::vector<unsigned> init_ids(L);
         boost::dynamic_bitset<> flags{index->getBaseLen(), 0};
 
-
         unsigned tmp_l = 0;
-        for (; tmp_l < L && tmp_l < index->getLoadGraph()[index->ep_].size(); tmp_l++) {
+        for (; tmp_l < L && tmp_l < index->getLoadGraph()[index->ep_].size(); tmp_l++)
+        {
             init_ids[tmp_l] = index->getLoadGraph()[index->ep_][tmp_l];
             flags[init_ids[tmp_l]] = true;
         }
 
-        while (tmp_l < L) {
+        while (tmp_l < L)
+        {
             unsigned id = rand() % index->getBaseLen();
-            if (flags[id]) continue;
+            if (flags[id])
+                continue;
             flags[id] = true;
             init_ids[tmp_l] = id;
             tmp_l++;
         }
 
-        for (unsigned i = 0; i < init_ids.size(); i++) {
+        for (unsigned i = 0; i < init_ids.size(); i++)
+        {
             unsigned id = init_ids[i];
-            
-            float e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + id * index->getBaseEmbDim(),
-                                                        index->getBaseEmbData() + query * index->getQueryEmbDim(),
-                                                        index->getBaseEmbDim());
 
-            float s_d = index->get_S_Dist()->compare(index->getBaseLocData() + id * index->getBaseLocDim(),
-                                                        index->getBaseLocData() + query * index->getBaseLocDim(),
-                                                         index->getBaseLocDim());
+            float e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)id * index->getBaseEmbDim(),
+                                                     index->getBaseEmbData() + (size_t)query * index->getQueryEmbDim(),
+                                                     index->getBaseEmbDim());
+
+            float s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)id * index->getBaseLocDim(),
+                                                     index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
+                                                     index->getBaseLocDim());
 
             float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
 
@@ -47,7 +52,6 @@ namespace stkq {
         std::sort(pool.begin(), pool.begin() + L);
     }
 
-
-    void ComponentSearchEntryNone::SearchEntryInner(unsigned int query, std::vector<Index::Neighbor> &pool) { }
+    void ComponentSearchEntryNone::SearchEntryInner(unsigned int query, std::vector<Index::Neighbor> &pool) {}
 
 }

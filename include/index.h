@@ -1371,7 +1371,7 @@ namespace stkq
         void set_alpha(float alpha)
         {
             // alpha_ = alpha;
-            param_.set<unsigned>("alpha", alpha);
+            param_.set<float>("alpha", alpha);
         }
 
         float get_alpha() const
