@@ -7,6 +7,9 @@ The hybrid vector query, which calculates similarity scores for objects represen
 
 This project contains the code,, optimal parameters, and other detailed information used for the experiments of our paper. It is worth noting that we reimplement all algorithms based on exactly the same design pattern, programming language and tricks, and experimental setup, which makes the comparison more fair. 
 
+## News
+
+#### 30/05/2025: I’ve corrected some mistakes in the previous Git commit — sorry for the inconvenience. The code can now fully reproduce the experimental results. If you need the dataset, I’d be happy to share it with you via OneDrive.
 
 ## Datasets
 
