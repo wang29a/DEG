@@ -2,7 +2,11 @@
 #include "builder.h"
 #include "component.h"
 #include "rtree.h"
+#include <iostream>
+#include <memory>
+#include <ostream>
 #include <set>
+#include <vector>
 
 namespace stkq
 {
@@ -195,6 +199,13 @@ namespace stkq
 
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
+                if (final_index_->DEG_nodes_[i] == nullptr) {
+                    unsigned node_id = -1;
+                    out.write((char *)&node_id, sizeof(unsigned));
+                    unsigned neighbor_size = 0;
+                    out.write((char *)&neighbor_size, sizeof(unsigned));
+                    continue;
+                }
                 unsigned node_id = final_index_->DEG_nodes_[i]->GetId();
                 out.write((char *)&node_id, sizeof(unsigned));
                 unsigned neighbor_size = final_index_->DEG_nodes_[i]->GetFriends().size();
@@ -972,6 +983,59 @@ namespace stkq
 
         if (L_type == L_SEARCH_ASCEND)
         {
+            // if (delete_ == true) {
+            //     std::cout << "__DELETE SEARCH : DEG__" << std::endl;
+            //     // 删除顶点数量
+            //     unsigned sample_size = 1000;
+            //     ComponentInitDEG *a = new ComponentInitDEG(final_index_);
+            //     auto GetRandomNonGroundIDs = [](Index* index, unsigned sample_size){  
+            //         // 收集所有在ground truth中出现的ID  
+            //         std::unordered_set<unsigned> ground_ids;  
+                    
+            //         unsigned* ground_data = index->getGroundData();  
+            //         unsigned ground_len = index->getGroundLen();  
+            //         unsigned ground_dim = index->getGroundDim();  
+                    
+            //         // 遍历所有ground truth数据，收集所有出现的ID
+            //         for (unsigned i = 0; i < ground_len; i++) {
+            //             for (unsigned j = 0; j < ground_dim; j++) {
+            //                 ground_ids.insert(ground_data[i * ground_dim + j]);
+            //             }  
+            //         }  
+                    
+            //         // 从base data中找出不在ground truth中的ID  
+            //         std::vector<unsigned> available_ids;  
+            //         unsigned base_len = index->getBaseLen();  
+                    
+            //         for (unsigned i = 0; i < base_len; i++) {  
+            //             if (ground_ids.find(i) == ground_ids.end()) {  
+            //                 available_ids.push_back(i);  
+            //             }  
+            //         }  
+            //         std::cout << available_ids.size() << std::endl;
+            //         // 随机采样  
+            //         std::vector<unsigned> result_id;  
+            //         if (available_ids.size() > sample_size) {  
+            //             // 使用随机数生成器进行采样  
+            //             std::random_device rd;  
+            //             std::mt19937 gen(rd());  
+            //             std::shuffle(available_ids.begin(), available_ids.end(), gen);
+                        
+            //             result_id.assign(available_ids.begin(), available_ids.begin() + sample_size);
+            //         } else {
+            //             // 如果可用ID数量不足，返回全部  
+            //             result_id.swap(available_ids);
+            //         }
+                    
+            //         std::vector<Index::DEGNode *> result;
+            //         for (auto id: result_id) {
+            //             result.emplace_back(index->DEG_nodes_[id]);
+            //         }
+            //         return result;
+            //     };
+            //     a->Delete(GetRandomNonGroundIDs(final_index_, sample_size));
+            // }
+
             std::set<unsigned> visited;
             unsigned sg = 1000;
             float acc_set = 0.9;
@@ -982,7 +1046,7 @@ namespace stkq
             unsigned L_min = 0x7fffffff;
             // while (true)
             // {
-            for (unsigned t = 0; t < 20; t++)
+            for (unsigned t = 0; t < 30; t++)
             {
 
                 L = L + K;
@@ -1010,7 +1074,7 @@ namespace stkq
                 }
                 auto e1 = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double> diff = e1 - s1;
-                std::cout << "search time: " << diff.count() / final_index_->getQueryLen() << "\n";
+                std::cout << "search time: " << final_index_->getQueryLen()/diff.count()   << "\n";
                 std::cout << "DistCount: " << final_index_->getDistCount() << std::endl;
                 std::cout << "HopCount: " << final_index_->getHopCount() << std::endl;
                 final_index_->resetDistCount();
@@ -1039,7 +1103,7 @@ namespace stkq
                 }
                 // float acc = 1 - (float)cnt / (final_index_->getGroundLen() * K);
                 float acc = recall / final_index_->getQueryLen();
-                std::cout << K << " NN accuracy: " << acc << std::endl;
+                std::cout << K << " NN accuracy: " << acc << " recall: " << recall << " final_index_->getQueryLen(): " << final_index_->getQueryLen() << std::endl;
             }
         }
         e = std::chrono::high_resolution_clock::now();

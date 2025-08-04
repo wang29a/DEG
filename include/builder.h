@@ -46,6 +46,8 @@ namespace stkq
 
         IndexBuilder *search(TYPE entry_type, TYPE route_type, TYPE L_type, Parameters para_);
 
+        IndexBuilder *insert(TYPE entry_type, TYPE route_type, TYPE L_type, Parameters para_, bool delete_ = false);
+
         void print_graph();
 
         void degree_info(std::unordered_map<unsigned, unsigned> &in_degree, std::unordered_map<unsigned, unsigned> &out_degree, TYPE type);

@@ -157,12 +157,12 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
 
     if (dataset == "openimage")
     {
-        base_emb_path.append(R"(OpenImage/base_img_emb.fvecs)");
-        base_loc_path.append(R"(OpenImage/base_text_emb.fvecs)");
-        query_emb_path.append(R"(OpenImage/query_img_emb.fvecs)");
-        query_loc_path.append(R"(OpenImage/query_text_emb.fvecs)");
-        query_alpha_path.append(R"(OpenImage/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(OpenImage/range_)" + std::to_string(range) + "_top10_results.ivecs");
+        base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+        base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+        query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
+        query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
+        query_alpha_path.append(R"(OpenImage/ed_query_alpha_)" + std::to_string(range) + ".fvecs");
+        ground_path.append(R"(OpenImage/ed_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
     }
     else if (dataset == "sg-ins")
     {

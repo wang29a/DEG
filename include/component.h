@@ -185,6 +185,8 @@ namespace stkq
 
         void InitInner() override;
 
+        void Delete(std::vector<Index::DEGNode *> delete_nodes);
+
     private:
         void SetConfigs();
 
@@ -216,6 +218,12 @@ namespace stkq
                          std::vector<std::vector<Index::DEGNeighbor>> &cut_graph_);
 
         void InsertNode(Index::DEGNode *qnode, Index::VisitedList *visited_list);
+
+        void DeleteNode(Index::DEGNode *delete_node);
+
+        void RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id);
+
+        void RemoveFromEntryPoints(Index::DEGNode *delete_node);
 
         void GenRandom(std::mt19937 &rng, unsigned *addr, unsigned size, unsigned N);
 

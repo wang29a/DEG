@@ -262,8 +262,8 @@ int main(int argc, char **argv)
     }
 
     stkq::Parameters parameters;
-    std::string dataset_root = R"(/mnt/hdd/yinziqi/yinziqi/graphann-tkq/dataset/)";
-    std::string index_path = R"(/mnt/hdd/yinziqi/yinziqi/graphann-tkq/saved_index/)";
+    std::string dataset_root = R"(/root/data/output/)";
+    std::string index_path = R"(/root/data/saved_index/)";
     parameters.set<std::string>("dataset_root", dataset_root);
     parameters.set<std::string>("index_path", index_path);
     parameters.set<unsigned>("n_threads", 8);
