@@ -1,8 +1,12 @@
 #include "component.h"
 #include "index.h"
+#include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <functional>
 #include <iostream>
+#include <ostream>
+#include <unordered_set>
 
 namespace stkq
 {
@@ -1003,10 +1007,10 @@ namespace stkq
             delete visited_list;
         }
 
-        if (false) {
+        if (true) {
             std::cout << "__DELETE: DEG__" << std::endl;
             // 删除顶点数量
-            unsigned sample_size = 1000;
+            unsigned sample_size = 50000;
             auto GetRandomNonGroundIDs = [](Index* index, unsigned sample_size){  
                 // 收集所有在ground truth中出现的ID  
                 std::unordered_set<unsigned> ground_ids;  
@@ -1029,7 +1033,7 @@ namespace stkq
                 for (unsigned i = 0; i < base_len; i++) {  
                     if (ground_ids.find(i) == ground_ids.end()) {  
                         available_ids.push_back(i);  
-                    }  
+                    }
                 }  
                 std::cout << available_ids.size() << std::endl;
                 // 随机采样  
@@ -1053,28 +1057,20 @@ namespace stkq
                 return result;
             };
             auto delete_nodes = GetRandomNonGroundIDs(index, sample_size);
-    // #pragma omp parallel
+            std::atomic_size_t cnt{0};
+    #pragma omp parallel
             {
-    // #pragma omp for schedule(dynamic, 128)
+    #pragma omp for schedule(dynamic, 128)
                 for (size_t i = 1; i < delete_nodes.size(); ++i)
                 {
+                    auto t = cnt.fetch_add(1);
+                    if (t %100 == 0) {
+                        std::cout << t <<  "/" << sample_size << std::endl;
+                    }
                     // std::cout<< delete_nodes.at(i)->GetId() << std::endl;
                     DeleteNode(delete_nodes.at(i));
                 }
             }
-        }
-
-        {
-            auto *visited_list = new Index::VisitedList(index->getBaseLen());
-            for (size_t i = 1; i < index->getQueryLen(); ++i)
-            {
-                // std::cout << i << std::endl;
-                level = 0;
-                auto *qnode = new Index::DEGNode(i, index->max_m_);
-                index->DEG_nodes_[i] = qnode;
-                InsertNode(qnode, visited_list);
-            }
-            delete visited_list;
         }
 
     }
@@ -1125,6 +1121,14 @@ namespace stkq
     {
         std::vector<Index::DEGNNDescentNeighbor> pool;
         SearchAtLayer(qnode, visited_list, pool);
+        std::vector<Index::DEGNNDescentNeighbor> candidate;
+        candidate.reserve(pool.size());
+        // std::cout<< pool.size()<<std::endl;
+        for (size_t i = 0; i < pool.size() && i < 100; i ++) {
+            candidate.emplace_back(pool.at(i));
+        }
+        // assert(pool.size() == candidate.size());
+        qnode->SetCandidateSet(candidate);
         ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
         std::vector<Index::DEGNeighbor> result;
         a->DEG2Neighbor(qnode->GetId(), qnode->GetMaxM(), pool, result);
@@ -1135,13 +1139,14 @@ namespace stkq
         }
         qnode->SetFriends(result);
         UpdateEnterpointSet(qnode);
+        // delete a;
     }
 
     void ComponentInitDEG::Delete(std::vector<Index::DEGNode *> delete_nodes)
     {
-// #pragma omp parallel
+#pragma omp parallel
         {
-// #pragma omp for schedule(dynamic, 128)
+#pragma omp for schedule(dynamic, 128)
             for (size_t i = 1; i < delete_nodes.size(); ++i)
             {
                 // std::cout<< delete_nodes.at(i)->GetId() << std::endl;
@@ -1152,53 +1157,71 @@ namespace stkq
 
     void ComponentInitDEG::DeleteNode(Index::DEGNode *delete_node)
     {  
-        std::unique_lock<std::mutex> lock(delete_node->GetAccessGuard());
+        // 如果是入口点，从入口点集合中移除  
+        RemoveFromEntryPoints(delete_node);
         // 获取要删除节点的所有邻居  
         std::vector<Index::DEGNeighbor> &neighbors = delete_node->GetFriends();  
         
-        // 为所有邻居对建立新连接  
+        ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
+        std::vector<Index::DEGNNDescentNeighbor> tempres;
+        std::vector<Index::DEGNeighbor> result;
+        std::unordered_set<unsigned> id_set;
+        std::vector<Index::DEGNNDescentNeighbor> tmp;
+        // 为所有邻居建立新连接  
         for (size_t i = 0; i < neighbors.size(); i++) {  
-            for (size_t j = i + 1; j < neighbors.size(); j++) {
-                if(index->DEG_nodes_[neighbors[i].id_] == nullptr) continue;
-                if(index->DEG_nodes_[neighbors[j].id_] == nullptr) continue;
+            auto *node1 = index->DEG_nodes_[neighbors[i].id_];
+            if(node1 == nullptr) continue;
 
-                auto *node1 = index->DEG_nodes_[neighbors[i].id_];
-                auto *node2 = index->DEG_nodes_[neighbors[j].id_];
+            {
+                std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+                // UpdateEnterpointSet(node1);
+                // 从邻居的邻居列表中移除当前节点  
+                RemoveFromNeighborList(node1, delete_node->GetId());  
+                // 从candidate中建立连接  
+                auto &node1_candidates = node1->GetCandidateSet();
+                std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+                
+                tempres.clear();
+                result.clear();
+                id_set.clear();
+                tmp.clear();
+                std::vector<Index::DEGNNDescentNeighbor> new_set;
+                for (const auto &f : node1_friends)
+                {
+                    auto *fnode = index->DEG_nodes_[f.id_];
+                    if (fnode == nullptr) continue;
+                    id_set.insert(f.id_);
+                    tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+                }
 
-                // 计算距离  
-                float e_d = index->get_E_Dist()->compare(  
-                    index->getBaseEmbData() + node1->GetId() * index->getBaseEmbDim(),  
-                    index->getBaseEmbData() + node2->GetId() * index->getBaseEmbDim(),  
-                    index->getBaseEmbDim());  
-                
-                float s_d = index->get_S_Dist()->compare(  
-                    index->getBaseLocData() + node1->GetId() * index->getBaseLocDim(),  
-                    index->getBaseLocData() + node2->GetId() * index->getBaseLocDim(),  
-                    index->getBaseLocDim());  
-                
-                // 建立双向连接  
-                Link(node1, node2, 0, e_d, s_d);  
-                Link(node2, node1, 0, e_d, s_d);  
-            }  
+
+                for (auto &cand : node1_candidates) {
+                    auto *cand_node = index->DEG_nodes_[cand.id_];
+                    if (cand_node == nullptr) continue;
+                    if (id_set.insert(cand.id_).second) {
+                        tempres.emplace_back(cand.id_, cand.emb_distance_, cand.geo_distance_, true, -1);
+                        tmp.emplace_back(cand);
+                    }
+                }
+
+                a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+                node1->SetFriends(result);
+            }
+            for (auto& t : tmp) {
+                auto *cand = index->DEG_nodes_[t.id_];
+                if (cand == nullptr) {
+                    continue;
+                }
+                Link(cand, node1, 0, t.emb_distance_, t.geo_distance_);
+            }
         }  
-        
-        // 从所有邻居的邻居列表中移除当前节点  
-        for (const auto &neighbor : neighbors) {  
-            if(index->DEG_nodes_[neighbor.id_] == nullptr) continue;
-            auto *neighbor_node = index->DEG_nodes_[neighbor.id_];  
-            RemoveFromNeighborList(neighbor_node, delete_node->GetId());  
-        }  
-        
-        // 如果是入口点，从入口点集合中移除  
-        RemoveFromEntryPoints(delete_node);  
-        
+        // delete a;
         // 从节点数组中移除
         index->DEG_nodes_[delete_node->GetId()] = nullptr; 
     }
 
     void ComponentInitDEG::RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id)  
     {  
-        std::unique_lock<std::mutex> lock(node->GetAccessGuard());  
         std::vector<Index::DEGNeighbor> &neighbors = node->GetFriends();  
         
         // 查找并移除目标节点  
@@ -1213,9 +1236,13 @@ namespace stkq
 
     void ComponentInitDEG::RemoveFromEntryPoints(Index::DEGNode *delete_node)  
     {  
+        if (!index || !delete_node) {  
+            std::cerr << "[RemoveFromEntryPoints] index or delete_node is nullptr\n";  
+            return;  
+        }
         std::unique_lock<std::mutex> enterpoint_lock(index->enterpoint_mutex);  
         
-        unsigned delete_id = delete_node->GetId();  
+        auto delete_id = delete_node->GetId();  
         
         // 从DEG_enterpoints_skyeline中移除  
         auto it_skyline = std::remove_if(index->DEG_enterpoints_skyeline.begin(),   
@@ -1225,13 +1252,6 @@ namespace stkq
             });  
         index->DEG_enterpoints_skyeline.erase(it_skyline, index->DEG_enterpoints_skyeline.end());  
         
-        // 从DEG_enterpoints中移除  
-        auto it_points = std::remove_if(index->DEG_enterpoints.begin(),   
-                                        index->DEG_enterpoints.end(),  
-            [delete_id](Index::DEGNode *node) {  
-                return node->GetId() == delete_id;  
-            });  
-        index->DEG_enterpoints.erase(it_points, index->DEG_enterpoints.end());  
     }
 
     void ComponentInitDEG::SearchAtLayer(Index::DEGNode *qnode,

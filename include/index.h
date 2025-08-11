@@ -570,12 +570,31 @@ namespace stkq
             DEGNNDescentNeighbor() = default;
             DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
             {
+            // }
+            // DEGNNDescentNeighbor(const DEGNNDescentNeighbor &other)
+            //     : id_{other.id_},
+            //     emb_distance_(other.emb_distance_),
+            //     geo_distance_(other.geo_distance_),
+            //     flag(other.flag),
+            //     layer_(other.layer_)
+            // {
             }
             inline bool operator<(const DEGNNDescentNeighbor &other) const
             {
                 // return geo_distance_ < other.geo_distance_;
                 return (geo_distance_ < other.geo_distance_ || (geo_distance_ == other.geo_distance_ && emb_distance_ < other.emb_distance_));
                 // 较小的 geo_distance_ 值会被排序到较前的位置
+            }
+        };
+        struct DEGCandidate
+        {
+            unsigned id_;
+            float emb_distance_;
+            float geo_distance_;
+            int layer_;
+            DEGCandidate() = default;
+            DEGCandidate(unsigned id, float emb_distance, float geo_distance, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), layer_(layer)
+            {
             }
         };
 
@@ -589,6 +608,7 @@ namespace stkq
                 // friends_for_search.reserve(max_m_ + 1);
                 friends.clear();
                 friends_for_search.clear();
+                candidate_set.clear();
             }
 
             inline int GetId() const { return id_; }
@@ -611,6 +631,13 @@ namespace stkq
                 friends_for_search.swap(new_friends);
             }
 
+            inline std::vector<DEGNNDescentNeighbor> &GetCandidateSet() { return candidate_set; }
+
+            inline void SetCandidateSet(std::vector<DEGNNDescentNeighbor> &new_candidate)
+            {
+                candidate_set.swap(new_candidate);
+            }
+
             inline std::mutex &GetAccessGuard() { return access_guard_; }
 
         private:
@@ -619,6 +646,7 @@ namespace stkq
             size_t max_m_;
             std::vector<DEGNeighbor> friends;
             std::vector<DEGSimpleNeighbor> friends_for_search;
+            std::vector<DEGNNDescentNeighbor> candidate_set;
             std::mutex access_guard_;
         };
 
