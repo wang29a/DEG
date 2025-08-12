@@ -168,6 +168,17 @@ namespace stkq
         index->setGroundLen(ground_num);
         index->setGroundDim(ground_dim);
         assert(index->getGroundData() != nullptr && index->getGroundLen() != 0 && index->getGroundDim() != 0);
+        unsigned *delete_data = nullptr;
+        unsigned delete_num{};
+        unsigned delete_dim{};
+        load_data<unsigned>("/root/data/output/OpenImage/delete.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete_3.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete_small.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete_small_2.ivecs", delete_data, delete_num, delete_dim);
+        index->setDeleteData(delete_data);
+        index->setDeleteLen(delete_num);
+        index->setDeleteDim(delete_dim);
+        assert(index->getDeleteData() != nullptr && index->getDeleteLen() != 0 && index->getDeleteDim() != 0);
         index->setParam(parameters);
     }
 }

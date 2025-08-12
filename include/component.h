@@ -219,11 +219,13 @@ namespace stkq
 
         void InsertNode(Index::DEGNode *qnode, Index::VisitedList *visited_list);
 
+        void UpdateNode(Index::DEGNode *update_node);
+
         void DeleteNode(Index::DEGNode *delete_node);
 
-        void RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id);
+        bool RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id, unsigned &layer);
 
-        void RemoveFromEntryPoints(Index::DEGNode *delete_node);
+        void RemoveFromEntryPoints(unsigned delete_id);
 
         void GenRandom(std::mt19937 &rng, unsigned *addr, unsigned size, unsigned N);
 

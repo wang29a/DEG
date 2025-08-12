@@ -35,6 +35,8 @@ namespace stkq
             std::cout << "query data loc dim : " << final_index_->getQueryLocDim() << std::endl;
             std::cout << "ground truth data len : " << final_index_->getGroundLen() << std::endl;
             std::cout << "ground truth data dim : " << final_index_->getGroundDim() << std::endl;
+            std::cout << "delete data len : " << final_index_->getDeleteLen() << std::endl;
+            std::cout << "delete data dim : " << final_index_->getDeleteDim() << std::endl;
             std::cout << "=====================" << std::endl;
             std::cout << final_index_->getParam().toString() << std::endl;
             std::cout << "=====================" << std::endl;
@@ -406,11 +408,26 @@ namespace stkq
             unsigned enterpoint_id, enterpoint_size;
             final_index_->enterpoint_set.clear();
             in.read((char *)&enterpoint_size, sizeof(unsigned));
+            std::cout<< "enterpoint id size: " << enterpoint_size <<std::endl;
             for (unsigned i = 0; i < enterpoint_size; i++)
             {
                 in.read((char *)&enterpoint_id, sizeof(unsigned));
                 final_index_->enterpoint_set.push_back(enterpoint_id);
+                std::cout << " " <<enterpoint_id;
             }
+            std::cout<<std::endl;
+            // final_index_->enterpoint_set.push_back(505018);
+            // final_index_->enterpoint_set.push_back(323284);
+            // final_index_->enterpoint_set.push_back(51420 );
+            // final_index_->enterpoint_set.push_back(129458);
+            // final_index_->enterpoint_set.push_back(487462);
+            // final_index_->enterpoint_set.push_back(87983 );
+            // final_index_->enterpoint_set.push_back(331768);
+            // final_index_->enterpoint_set.push_back(221498);
+            // final_index_->enterpoint_set.push_back(504855);
+            // final_index_->enterpoint_set.push_back(30355 );
+            // final_index_->enterpoint_set.push_back(41471 );
+            // final_index_->enterpoint_set.push_back(427054);
 
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
@@ -1046,7 +1063,7 @@ namespace stkq
             unsigned L_min = 0x7fffffff;
             // while (true)
             // {
-            for (unsigned t = 0; t < 30; t++)
+            for (unsigned t = 0; t < 20; t++)
             {
 
                 L = L + K;

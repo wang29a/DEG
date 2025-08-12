@@ -1266,6 +1266,16 @@ namespace stkq
             ground_data_ = groundData;
         }
 
+        unsigned int *getDeleteData() const
+        {
+            return delete_data_;
+        }
+
+        void setDeleteData(unsigned int *deleteData)
+        {
+            delete_data_ = deleteData;
+        }
+
         unsigned int getBaseLen() const
         {
             return base_len_;
@@ -1294,6 +1304,16 @@ namespace stkq
         void setGroundLen(unsigned int groundLen)
         {
             ground_len_ = groundLen;
+        }
+
+        unsigned int getDeleteLen() const
+        {
+            return delete_len_;
+        }
+
+        void setDeleteLen(unsigned int deleteLen)
+        {
+            delete_len_ = deleteLen;
         }
 
         unsigned int getBaseEmbDim() const
@@ -1344,6 +1364,16 @@ namespace stkq
         void setGroundDim(unsigned int groundDim)
         {
             ground_dim_ = groundDim;
+        }
+        
+        unsigned int getDeleteDim() const
+        {
+            return delete_dim_;
+        }
+
+        void setDeleteDim(unsigned int deleteDim)
+        {
+            delete_dim_ = deleteDim;
         }
 
         Parameters &getParam()
@@ -1527,9 +1557,10 @@ namespace stkq
     private:
         float *base_emb_data_, *base_loc_data_, *query_emb_data_, *query_loc_data_, *query_alpha_;
         unsigned *ground_data_;
+        unsigned *delete_data_;
 
-        unsigned base_len_, query_len_, ground_len_;
-        unsigned base_emb_dim_, base_loc_dim_, query_emb_dim_, query_loc_dim_, ground_dim_;
+        unsigned base_len_, query_len_, ground_len_, delete_len_;
+        unsigned base_emb_dim_, base_loc_dim_, query_emb_dim_, query_loc_dim_, ground_dim_, delete_dim_;
 
         Parameters param_;
         unsigned init_edges_num;       // S

@@ -612,6 +612,11 @@ namespace stkq
         for (int i = 0; i < index->enterpoint_set.size(); i++)
         {
             Index::DEGNode *cur_node = index->DEG_nodes_[index->enterpoint_set[i]];
+            if (cur_node->GetId() == -1) {
+                continue;
+            }else {
+                // std::cout<<index->enterpoint_set[i]<<" "<< std::endl;
+            }
 
             float cur_e_d = index->get_E_Dist()->compare(index->getQueryEmbData() + (size_t)qnode * index->getBaseEmbDim(),
                                                          index->getBaseEmbData() + (size_t)cur_node->GetId() * index->getBaseEmbDim(),
