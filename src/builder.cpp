@@ -201,7 +201,7 @@ namespace stkq
 
             for (unsigned i = 0; i < final_index_->getBaseLen(); i++)
             {
-                if (final_index_->DEG_nodes_[i] == nullptr) {
+                if (final_index_->DEG_nodes_[i]->GetId() == -1) {
                     unsigned node_id = -1;
                     out.write((char *)&node_id, sizeof(unsigned));
                     unsigned neighbor_size = 0;
