@@ -1021,6 +1021,45 @@ namespace stkq
 
 
         if (true) {
+
+            std::cout << "__UPDATE: DEG__" << std::endl;
+    //         index->ef_construction_ = 400;
+        std::chrono::high_resolution_clock::time_point s;
+        std::chrono::high_resolution_clock::time_point e;
+            s = std::chrono::high_resolution_clock::now();
+            cnt.exchange(0);
+    #pragma omp parallel
+            {
+                auto *visited_list = new Index::VisitedList(index->getBaseLen());
+    #pragma omp for schedule(dynamic, 128)
+                for (size_t i = 0; i < index->getBaseLen(); ++i)
+                {
+                    // if (index->DEG_nodes_[i]->GetId() == -1) {
+                    //     continue;
+                    // }
+                    auto *qnode = index->DEG_nodes_[i];
+                    std::vector<Index::DEGNNDescentNeighbor> pool;
+                    SearchAtLayer(qnode, visited_list, pool);
+
+                    qnode->SetCandidateSet(pool);
+                }
+                delete visited_list;
+            }
+
+            // std::vector<std::vector<Index::DEGNNDescentNeighbor>> pools;
+            // for (size_t i = 0; i < index->getBaseLen(); ++i)
+            // {
+            //     // if (index->DEG_nodes_[i]->GetId() == -1) {
+            //     //     continue;
+            //     // }
+            //     auto *qnode = index->DEG_nodes_[i];
+            //     pools.push_back(qnode->GetCandidateSet());
+            // }
+            // std::string filename = "/root/data/saved_index/candidate_0.1";
+            // WriteMultipleCandidate(filename, pools);
+            e = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> time = e-s;
+            std::cout<<"candidate time: " << time.count() <<std::endl;
             std::cout << "__DELETE: DEG__" << std::endl;
             // 删除顶点数量
             unsigned sample_size = 50000;
@@ -1048,55 +1087,38 @@ namespace stkq
                         update_id_set.insert(n.id_);
                 }
             }
-            std::cout<< "update node num:" << update_id_set.size() << std::endl;
+            std::cout<< "update node num: " << update_id_set.size() << std::endl;
             for (size_t i = 0; i < delete_nodes.size(); ++i)
             {
                 RemoveFromEntryPoints(delete_nodes.at(i));
             }
-
-            std::cout << "__UPDATE: DEG__" << std::endl;
-    //         index->ef_construction_ = 400;
-        std::chrono::high_resolution_clock::time_point s;
-        std::chrono::high_resolution_clock::time_point e;
-            s = std::chrono::high_resolution_clock::now();
-            cnt.exchange(0);
-    #pragma omp parallel
-            {
-                auto *visited_list = new Index::VisitedList(index->getBaseLen());
-    #pragma omp for schedule(dynamic, 128)
-                for (size_t i = 0; i < index->getBaseLen(); ++i)
-                {
-                    if (index->DEG_nodes_[i]->GetId() == -1) {
-                        continue;
-                    }
-                    auto *qnode = index->DEG_nodes_[i];
-                    std::vector<Index::DEGNNDescentNeighbor> pool;
-                    SearchAtLayer(qnode, visited_list, pool);
-                    qnode->SetCandidateSet(pool);
-                }
-                delete visited_list;
-            }
-            e = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> time = e-s;
-            std::cout<<"candidate time: " << time.count() <<std::endl;
             // std::vector<unsigned> update_ids{update_id_set.begin(), update_id_set.end()};
+            std::cout<< "Enter" << std::endl;
+            std::cin.get();
             s = std::chrono::high_resolution_clock::now();
     #pragma omp parallel
             {
-                auto *visited_list = new Index::VisitedList(index->getBaseLen());
+                // auto *visited_list = new Index::VisitedList(index->getBaseLen());
     #pragma omp for schedule(dynamic, 128)
                 for (size_t i = 0; i < index->getBaseLen(); ++i)
                 // for (size_t i = 0; i < update_ids.size(); i ++)
                 {
-                    // auto t = cnt.fetch_add(1);
                     auto *qnode = index->DEG_nodes_[i];
                     // auto *qnode = index->DEG_nodes_[update_ids.at(i)];
                     if (qnode->GetId() == -1) {
                         continue;
                     }
+                    // recomupte
+                    // std::vector<Index::DEGNNDescentNeighbor> pool;
+                    // SearchAtLayer(qnode, visited_list, pool);
+                    // qnode->SetCandidateSet(pool);
+                    // disk IO
+                    // auto result = ReadCandidateByIndex(filename, qnode->GetId());
+                    // qnode->SetCandidateSet(result);
+                    
                     UpdateNode(qnode);
                 }
-                delete visited_list;
+                // delete visited_list;
             }
             e = std::chrono::high_resolution_clock::now();
             time = e-s;
@@ -1105,6 +1127,58 @@ namespace stkq
 
     }
 
+    void ComponentInitDEG::WriteMultipleCandidate(const std::string& filename,
+                            const std::vector<std::vector<Index::DEGNNDescentNeighbor>>& pools) {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out) throw std::runtime_error("failed open file: " + filename);
+
+        uint64_t count = pools.size();
+        out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+
+        // 预留偏移表位置
+        std::vector<uint64_t> offsets(count, 0);
+        out.write(reinterpret_cast<const char*>(offsets.data()), count * sizeof(uint64_t));
+
+        // 写数据并记录偏移
+        for (uint64_t i = 0; i < count; ++i) {
+            offsets[i] = static_cast<uint64_t>(out.tellp());
+
+            uint64_t size = pools[i].size();
+            out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            out.write(reinterpret_cast<const char*>(pools[i].data()), size * sizeof(Index::DEGNNDescentNeighbor));
+        }
+
+        // 回到文件头写偏移表
+        out.seekp(sizeof(count), std::ios::beg);
+        out.write(reinterpret_cast<const char*>(offsets.data()), count * sizeof(uint64_t));
+
+        out.close();
+    }
+
+    // 从文件读取指定 idx 的 vector
+    std::vector<Index::DEGNNDescentNeighbor> ComponentInitDEG::ReadCandidateByIndex(const std::string& filename, uint64_t idx) {
+        std::ifstream in(filename, std::ios::binary);
+        if (!in) throw std::runtime_error("failed open file: " + filename);
+
+        uint64_t count;
+        in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (idx >= count) throw std::out_of_range("out idx");
+
+        // 读取偏移表
+        std::vector<uint64_t> offsets(count);
+        in.read(reinterpret_cast<char*>(offsets.data()), count * sizeof(uint64_t));
+
+        // 定位到指定 vector 数据
+        in.seekg(offsets[idx], std::ios::beg);
+
+        uint64_t size;
+        in.read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        std::vector<Index::DEGNNDescentNeighbor> pool(size);
+        in.read(reinterpret_cast<char*>(pool.data()), size * sizeof(Index::DEGNNDescentNeighbor));
+
+        return pool;
+    }
     void ComponentInitDEG::UpdateEnterpointSet(Index::DEGNode *qnode)
     {
         float e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
@@ -1235,13 +1309,13 @@ namespace stkq
                 a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
                 node1->SetFriends(result);
             }
-            // for (auto& t : tmp) {
-            //     auto *cand = index->DEG_nodes_[t.id_];
-            //     if (cand->GetId() == -1) {
-            //         continue;
-            //     }
-            //     Link(cand, node1, 0, t.emb_distance_, t.geo_distance_);
-            // }
+            for (auto& t : tmp) {
+                auto *cand = index->DEG_nodes_[t.id_];
+                if (cand->GetId() == -1) {
+                    continue;
+                }
+                Link(cand, node1, 0, t.emb_distance_, t.geo_distance_);
+            }
     }
 
     void ComponentInitDEG::DeleteNode(Index::DEGNode *delete_node)

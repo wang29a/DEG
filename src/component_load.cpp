@@ -171,10 +171,13 @@ namespace stkq
         unsigned *delete_data = nullptr;
         unsigned delete_num{};
         unsigned delete_dim{};
-        load_data<unsigned>("/root/data/output/OpenImage/delete.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete.ivecs", delete_data, delete_num, delete_dim);
         // load_data<unsigned>("/root/data/output/OpenImage/delete_3.ivecs", delete_data, delete_num, delete_dim);
         // load_data<unsigned>("/root/data/output/OpenImage/delete_small.ivecs", delete_data, delete_num, delete_dim);
         // load_data<unsigned>("/root/data/output/OpenImage/delete_small_2.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete_1\%_1.ivecs", delete_data, delete_num, delete_dim);
+        // load_data<unsigned>("/root/data/output/OpenImage/delete_1\%_2.ivecs", delete_data, delete_num, delete_dim);
+        load_data<unsigned>("/root/data/output/OpenImage/delete_0.1\%_1.ivecs", delete_data, delete_num, delete_dim);
         index->setDeleteData(delete_data);
         index->setDeleteLen(delete_num);
         index->setDeleteDim(delete_dim);

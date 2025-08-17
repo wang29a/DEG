@@ -238,6 +238,11 @@ namespace stkq
 
         void Link(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist);
 
+        void WriteMultipleCandidate(const std::string& filename,
+                                const std::vector<std::vector<Index::DEGNNDescentNeighbor>>& pools);
+
+        std::vector<Index::DEGNNDescentNeighbor> ReadCandidateByIndex(const std::string& filename, uint64_t idx);
+
         bool isInRange(float alpha, const std::vector<std::pair<float, float>> &use_range)
         {
             // 遍历所有范围
