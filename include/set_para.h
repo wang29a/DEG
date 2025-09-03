@@ -157,22 +157,24 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
 
     if (dataset == "openimage")
     {
-        base_emb_path.append(R"(OpenImage/base_image.fvecs)");
-        base_loc_path.append(R"(OpenImage/base_text.fvecs)");
-        // query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
-        // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
-        // query_alpha_path.append(R"(OpenImage/ed_2_query_alpha_)" + std::to_string(range) + ".fvecs");
-        // ground_path.append(R"(OpenImage/ed_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        // 10%
+        {
+            base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+            base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+            query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
+            query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
+            query_alpha_path.append(R"(OpenImage/ed_2_query_alpha_)" + std::to_string(range) + ".fvecs");
+            ground_path.append(R"(OpenImage/ed_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        }
+        {
 
-        // query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
-        // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
-        // query_alpha_path.append(R"(OpenImage/ed_1% _1_query_alpha_)" + std::to_string(range) + ".fvecs");
-        // ground_path.append(R"(OpenImage/ed_1% _1_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
-
-        // query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
-        // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
-        // query_alpha_path.append(R"(OpenImage/ed_1%_2_query_alpha_)" + std::to_string(range) + ".fvecs");
-        // ground_path.append(R"(OpenImage/ed_1%_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+            // base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+            // query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
+            // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
+            // query_alpha_path.append(R"(OpenImage/ed_1%_2_query_alpha_)" + std::to_string(range) + ".fvecs");
+            // ground_path.append(R"(OpenImage/ed_1%_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        }
 
         // base_emb_path.append(R"(OpenImage/base_emb_10000.fvecs)");
         // base_loc_path.append(R"(OpenImage/base_loc_10000.fvecs)");
@@ -181,18 +183,35 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
         // query_alpha_path.append(R"(OpenImage/ed_3_query_alpha_)" + std::to_string(range) + ".fvecs");
         // ground_path.append(R"(OpenImage/ed_3_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
 
-        // base_emb_path.append(R"(OpenImage/base_emb_random_10000.fvecs)");
-        // base_loc_path.append(R"(OpenImage/base_loc_random_10000.fvecs)");
-        // query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
-        // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
-        // query_alpha_path.append(R"(OpenImage/small_query_alpha_)" + std::to_string(range) + ".fvecs");
-        // ground_path.append(R"(OpenImage/small_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
-        // query_alpha_path.append(R"(OpenImage/small_2_query_alpha_)" + std::to_string(range) + ".fvecs");
-        // ground_path.append(R"(OpenImage/small_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
-        query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
-        query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
-        query_alpha_path.append(R"(OpenImage/ed_0.1%_1_query_alpha_)" + std::to_string(range) + ".fvecs");
-        ground_path.append(R"(OpenImage/ed_0.1%_1_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        {
+            // base_emb_path.append(R"(OpenImage/base_emb_random_10000.fvecs)");
+            // base_loc_path.append(R"(OpenImage/base_loc_random_10000.fvecs)");
+            // query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
+            // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
+            // query_alpha_path.append(R"(OpenImage/small_query_alpha_)" + std::to_string(range) + ".fvecs");
+            // ground_path.append(R"(OpenImage/small_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+
+            // query_alpha_path.append(R"(OpenImage/small_2_query_alpha_)" + std::to_string(range) + ".fvecs");
+            // ground_path.append(R"(OpenImage/small_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        }
+        // 1%
+        {
+            // base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+            // base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+            // query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
+            // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
+            // query_alpha_path.append(R"(OpenImage/ed_1% _1_query_alpha_)" + std::to_string(range) + ".fvecs");
+            // ground_path.append(R"(OpenImage/ed_1% _1_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        }
+        // 0.1%
+        {
+            // base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+            // base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+            // query_emb_path.append(R"(OpenImage/val_1000_image.fvecs)");
+            // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
+            // query_alpha_path.append(R"(OpenImage/ed_0.1%_1_query_alpha_)" + std::to_string(range) + ".fvecs");
+            // ground_path.append(R"(OpenImage/ed_0.1%_1_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+        }
     }
     else if (dataset == "sg-ins")
     {
