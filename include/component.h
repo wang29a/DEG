@@ -185,7 +185,7 @@ namespace stkq
 
         void InitInner() override;
 
-        void Delete(std::vector<Index::DEGNode *> delete_nodes);
+        void Delete(std::vector<unsigned> delete_nodes);
 
     private:
         void SetConfigs();
@@ -219,11 +219,13 @@ namespace stkq
 
         void InsertNode(Index::DEGNode *qnode, Index::VisitedList *visited_list);
 
+        void Update();
+
         void UpdateNode(Index::DEGNode *update_node);
 
         void DeleteNode(Index::DEGNode *delete_node);
 
-        bool RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id, unsigned &layer);
+        bool RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id);
 
         void RemoveFromEntryPoints(unsigned delete_id);
 
@@ -237,6 +239,8 @@ namespace stkq
         void UpdateEnterpointSet();
 
         void Link(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist);
+
+        void LinkUpdate(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist);
 
         void WriteMultipleCandidate(const std::string& filename,
                                 const std::vector<std::vector<Index::DEGNNDescentNeighbor>>& pools);
@@ -783,12 +787,76 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
                            std::priority_queue<Index::FurtherFirst> &result);
     };
 
+    // class ThreadPool {
+    // public:
+    //     explicit ThreadPool(size_t numThreads) {
+    //         start(numThreads);
+    //     }
+
+    //     ~ThreadPool() {
+    //         stop();
+    //     }
+
+    //     // 提交任务，返回 future
+    //     template<class F, class... Args>
+    //     auto submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))> {
+    //         using RetType = decltype(f(args...));
+    //         auto task = std::make_shared<std::packaged_task<RetType()>>(
+    //             std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+    //         );
+    //         std::future<RetType> res = task->get_future();
+
+    //         {
+    //             std::unique_lock<std::mutex> lock(m_eventMutex);
+    //             m_tasks.emplace([task]() { (*task)(); });
+    //         }
+    //         m_eventVar.notify_one();
+    //         return res;
+    //     }
+
+    // private:
+    //     std::vector<std::thread> m_threads;
+    //     std::condition_variable m_eventVar;
+    //     std::mutex m_eventMutex;
+    //     bool m_stopping = false;
+    //     std::queue<std::function<void()>> m_tasks;
+
+    //     void start(size_t numThreads) {
+    //         for (size_t i = 0; i < numThreads; ++i) {
+    //             m_threads.emplace_back([this]() {
+    //                 while (true) {
+    //                     std::function<void()> task;
+    //                     {
+    //                         std::unique_lock<std::mutex> lock(m_eventMutex);
+    //                         m_eventVar.wait(lock, [this]() { return m_stopping || !m_tasks.empty(); });
+    //                         if (m_stopping && m_tasks.empty()) break;
+    //                         task = std::move(m_tasks.front());
+    //                         m_tasks.pop();
+    //                     }
+    //                     task();
+    //                 }
+    //             });
+    //         }
+    //     }
+
+    //     void stop() {
+    //         {
+    //             std::unique_lock<std::mutex> lock(m_eventMutex);
+    //             m_stopping = true;
+    //         }
+    //         m_eventVar.notify_all();
+    //         for (auto& thread : m_threads) thread.join();
+    //     }
+    // };
+
     class ComponentSearchRouteDEG : public ComponentSearchRoute
     {
     public:
         explicit ComponentSearchRouteDEG(Index *index) : ComponentSearchRoute(index) {}
 
         void RouteInner(unsigned query, std::vector<Index::Neighbor> &pool, std::vector<unsigned> &res) override;
+        
+        // void RouteInner(unsigned query, std::vector<Index::Neighbor> &pool, std::vector<unsigned> &res, ThreadPool& tpool);
 
         bool isInRange(float alpha, const std::vector<std::pair<float, float>> &use_range)
         {
@@ -819,6 +887,10 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
         void SearchAtLayer(unsigned qnode, Index::DEGNode *enterpoint, int level,
                            Index::VisitedList *visited_list,
                            std::priority_queue<Index::DEG_FurtherFirst> &result);
+        // void SearchAtLayer(unsigned qnode, Index::DEGNode *enterpoint, int level,
+        //                    Index::VisitedList *visited_list,
+        //                    std::priority_queue<Index::DEG_FurtherFirst> &result,
+        //                    ThreadPool& pool);
     };
 
     // search entry

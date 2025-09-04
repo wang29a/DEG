@@ -531,6 +531,7 @@ namespace stkq
             float geo_distance_;
             unsigned layer_;
             std::vector<std::pair<float, float>> available_range;
+            bool is_update_insert_ = false;
 
             DEGNeighbor() = default;
             DEGNeighbor(unsigned id, float emb_distance, float geo_distance) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance)
@@ -539,6 +540,7 @@ namespace stkq
             }
             DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range) {}
             DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range), layer_(l) {}
+            DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l, bool is_update) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range), layer_(l), is_update_insert_(is_update) {}
 
             inline bool operator<(const DEGNeighbor &other) const
             {
@@ -567,6 +569,7 @@ namespace stkq
             float geo_distance_;
             bool flag;
             int layer_;
+            bool is_update_insert_ = false;
             DEGNNDescentNeighbor() = default;
             DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
             {
@@ -578,6 +581,9 @@ namespace stkq
             //     flag(other.flag),
             //     layer_(other.layer_)
             // {
+            }
+            DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer, bool is_update) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer), is_update_insert_(is_update)
+            {
             }
             inline bool operator<(const DEGNNDescentNeighbor &other) const
             {
@@ -867,7 +873,7 @@ namespace stkq
                     insert_points.swap(remain_points);
                     for (auto &point : skyline_result)
                     {
-                        pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l);
+                        pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l, point.is_update_insert_);
                     }
                     std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
                     std::vector<DEGNNDescentNeighbor>().swap(remain_points);

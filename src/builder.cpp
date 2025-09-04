@@ -970,23 +970,25 @@ namespace stkq
         }
 
         // ROUTE
-        ComponentSearchRoute *b = nullptr;
-        if (route_type == ROUTER_GREEDY)
-        {
-            std::cout << "__ROUTER : GREEDY__" << std::endl;
-            b = new ComponentSearchRouteGreedy(final_index_);
-        }
-        else if (route_type == ROUTER_HNSW)
-        {
-            std::cout << "__ROUTER : HNSW__" << std::endl;
-            b = new ComponentSearchRouteHNSW(final_index_);
-        }
-        else if (route_type == ROUTER_BS4)
-        {
-            std::cout << "__ROUTER : BASELINE4__" << std::endl;
-            b = new ComponentSearchRouteBS4(final_index_);
-        }
-        else if (route_type == ROUTER_DEG)
+        // ComponentSearchRoute *b = nullptr;
+        ComponentSearchRouteDEG *b = nullptr;
+        // if (route_type == ROUTER_GREEDY)
+        // {
+        //     std::cout << "__ROUTER : GREEDY__" << std::endl;
+        //     b = new ComponentSearchRouteGreedy(final_index_);
+        // }
+        // else if (route_type == ROUTER_HNSW)
+        // {
+        //     std::cout << "__ROUTER : HNSW__" << std::endl;
+        //     b = new ComponentSearchRouteHNSW(final_index_);
+        // }
+        // else if (route_type == ROUTER_BS4)
+        // {
+        //     std::cout << "__ROUTER : BASELINE4__" << std::endl;
+        //     b = new ComponentSearchRouteBS4(final_index_);
+        // }
+        // else 
+        if (route_type == ROUTER_DEG)
         {
             std::cout << "__ROUTER : DEG__" << std::endl;
             b = new ComponentSearchRouteDEG(final_index_);
@@ -1000,73 +1002,21 @@ namespace stkq
 
         if (L_type == L_SEARCH_ASCEND)
         {
-            // if (delete_ == true) {
-            //     std::cout << "__DELETE SEARCH : DEG__" << std::endl;
-            //     // 删除顶点数量
-            //     unsigned sample_size = 1000;
-            //     ComponentInitDEG *a = new ComponentInitDEG(final_index_);
-            //     auto GetRandomNonGroundIDs = [](Index* index, unsigned sample_size){  
-            //         // 收集所有在ground truth中出现的ID  
-            //         std::unordered_set<unsigned> ground_ids;  
-                    
-            //         unsigned* ground_data = index->getGroundData();  
-            //         unsigned ground_len = index->getGroundLen();  
-            //         unsigned ground_dim = index->getGroundDim();  
-                    
-            //         // 遍历所有ground truth数据，收集所有出现的ID
-            //         for (unsigned i = 0; i < ground_len; i++) {
-            //             for (unsigned j = 0; j < ground_dim; j++) {
-            //                 ground_ids.insert(ground_data[i * ground_dim + j]);
-            //             }  
-            //         }  
-                    
-            //         // 从base data中找出不在ground truth中的ID  
-            //         std::vector<unsigned> available_ids;  
-            //         unsigned base_len = index->getBaseLen();  
-                    
-            //         for (unsigned i = 0; i < base_len; i++) {  
-            //             if (ground_ids.find(i) == ground_ids.end()) {  
-            //                 available_ids.push_back(i);  
-            //             }  
-            //         }  
-            //         std::cout << available_ids.size() << std::endl;
-            //         // 随机采样  
-            //         std::vector<unsigned> result_id;  
-            //         if (available_ids.size() > sample_size) {  
-            //             // 使用随机数生成器进行采样  
-            //             std::random_device rd;  
-            //             std::mt19937 gen(rd());  
-            //             std::shuffle(available_ids.begin(), available_ids.end(), gen);
-                        
-            //             result_id.assign(available_ids.begin(), available_ids.begin() + sample_size);
-            //         } else {
-            //             // 如果可用ID数量不足，返回全部  
-            //             result_id.swap(available_ids);
-            //         }
-                    
-            //         std::vector<Index::DEGNode *> result;
-            //         for (auto id: result_id) {
-            //             result.emplace_back(index->DEG_nodes_[id]);
-            //         }
-            //         return result;
-            //     };
-            //     a->Delete(GetRandomNonGroundIDs(final_index_, sample_size));
-            // }
 
             std::set<unsigned> visited;
             unsigned sg = 1000;
             float acc_set = 0.9;
             bool flag = false;
             int L_sl = 1;
-            unsigned L = 0;
+            unsigned L = 200;
             visited.insert(L);
             unsigned L_min = 0x7fffffff;
             // while (true)
             // {
-            for (unsigned t = 0; t < 20; t++)
+            for (unsigned t = 0; t < 1; t++)
             {
 
-                L = L + K;
+                // L = L + K;
                 std::cout << "SEARCH_L : " << L << std::endl;
                 if (L < K)
                 {
@@ -1076,6 +1026,7 @@ namespace stkq
 
                 final_index_->getParam().set<unsigned>("L_search", L);
 
+                // ThreadPool tpool(4);
                 auto s1 = std::chrono::high_resolution_clock::now();
 
                 res.clear();
@@ -1086,12 +1037,15 @@ namespace stkq
                 {
                     final_index_->set_alpha(final_index_->getQueryWeightData()[i]);
                     std::vector<Index::Neighbor> pool;
+                    // std::cout << "qnode: " << i << std::endl;
                     a->SearchEntryInner(i, pool);
                     b->RouteInner(i, pool, res[i]);
+                    // b->RouteInner(i, pool, res[i], tpool);
                 }
                 auto e1 = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double> diff = e1 - s1;
-                std::cout << "search time: " << final_index_->getQueryLen()/diff.count()   << "\n";
+                std::cout << "search time: " << diff.count() << "\n";
+                std::cout << "QPS: " << final_index_->getQueryLen()/diff.count()   << "\n";
                 std::cout << "DistCount: " << final_index_->getDistCount() << std::endl;
                 std::cout << "HopCount: " << final_index_->getHopCount() << std::endl;
                 final_index_->resetDistCount();
