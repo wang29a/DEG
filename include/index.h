@@ -1,6 +1,9 @@
 #ifndef STKQ_INDEX_H
 #define STKQ_INDEX_H
 
+#include <cstdint>
+#include <limits>
+#include <memory>
 #include <omp.h>
 #include <mutex>
 #include <queue>
@@ -21,6 +24,7 @@
 #include <boost/dynamic_bitset.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/heap/d_ary_heap.hpp>
+#include "tree.h"
 #include "util.h"
 #include "distance.h"
 #include "parameters.h"
@@ -615,6 +619,7 @@ namespace stkq
                 friends.clear();
                 friends_for_search.clear();
                 candidate_set.clear();
+                is_delete = false;
             }
 
             inline int GetId() const { return id_; }
@@ -644,6 +649,18 @@ namespace stkq
                 candidate_set.swap(new_candidate);
             }
 
+            inline std::shared_ptr<DirectedGraph<int, NodeInfo>> GetCandidateTree() { return candidate_tree; }
+
+            inline void SetCandidateTree(std::shared_ptr<DirectedGraph<int, NodeInfo>> tree) {
+                candidate_tree = tree;
+            }
+
+            inline bool GetDelete() { return is_delete; }
+
+            inline void SetDelete(bool deleted) { 
+                is_delete = deleted;
+            }
+
             inline std::mutex &GetAccessGuard() { return access_guard_; }
 
         private:
@@ -653,6 +670,8 @@ namespace stkq
             std::vector<DEGNeighbor> friends;
             std::vector<DEGSimpleNeighbor> friends_for_search;
             std::vector<DEGNNDescentNeighbor> candidate_set;
+            std::shared_ptr<DirectedGraph<int, NodeInfo>> candidate_tree;
+            bool is_delete;
             std::mutex access_guard_;
         };
 
@@ -902,6 +921,30 @@ namespace stkq
                 // O(n)
             }
 
+            void findSkylineWithtree(std::vector<DEGNNDescentNeighbor> &points,
+                                    std::vector<DEGNNDescentNeighbor> &skyline,
+                                    std::vector<DEGNNDescentNeighbor> &remain_points,
+                                    DirectedGraph<int, NodeInfo> &tree
+            ) {
+                // Sort points by x-coordinate
+                // Sweep to find skyline
+                float min_emb_dis = std::numeric_limits<float>::max();
+                unsigned idx = 0;
+                for (const auto &point : points)
+                {
+                    tree.insertNode(point.id_, NodeInfo{point.emb_distance_, point.geo_distance_, point.layer_});
+                    if (point.emb_distance_ < min_emb_dis) {
+                        skyline.push_back(point);
+                        idx = point.id_;
+                        min_emb_dis = point.emb_distance_;
+                    } else {
+                        tree.addEdge(idx, point.id_);
+                        remain_points.emplace_back(point);
+                    }
+                }
+                // O(n)
+            }
+
             void updateNeighbor(int &nk)
             {
                 std::vector<DEGNNDescentNeighbor> skyline_result;
@@ -939,6 +982,32 @@ namespace stkq
                     l++;
                 }
                 num_layer = l;
+            }
+
+            std::shared_ptr<DirectedGraph<int, NodeInfo>> tree()
+            {
+                std::shared_ptr<DirectedGraph<int, NodeInfo>> res = std::make_shared<DirectedGraph<int, NodeInfo>>();
+                std::vector<DEGNNDescentNeighbor> skyline_result;
+                std::vector<DEGNNDescentNeighbor> remain_points;
+                std::vector<DEGNNDescentNeighbor> candidate;
+                candidate.swap(pool);
+                int l = 0;
+                sort(candidate.begin(), candidate.end());
+                while (pool.size() < M && candidate.size() > 0)
+                {
+                    findSkylineWithtree(candidate, skyline_result, remain_points, *res);
+                    // findConvexHull(candidate, skyline_result, remain_points); // too slow
+                    candidate.swap(remain_points);
+                    for (auto &point : skyline_result)
+                    {
+                        pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, point.flag, l);
+                    }
+                    skyline_result.clear();
+                    remain_points.clear();
+                    l++;
+                }
+                num_layer = l;
+                return res;
             }
         };
 

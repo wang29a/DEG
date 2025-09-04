@@ -185,7 +185,6 @@ namespace stkq
 
         void InitInner() override;
 
-        void Delete(std::vector<unsigned> delete_nodes);
 
     private:
         void SetConfigs();
@@ -223,6 +222,8 @@ namespace stkq
 
         void UpdateNode(Index::DEGNode *update_node);
 
+        void Delete();
+
         void DeleteNode(Index::DEGNode *delete_node);
 
         bool RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id);
@@ -233,7 +234,8 @@ namespace stkq
 
         void SearchAtLayer(Index::DEGNode *qnode,
                            Index::VisitedList *visited_list,
-                           std::vector<Index::DEGNNDescentNeighbor> &result);
+                           std::vector<Index::DEGNNDescentNeighbor> &result,
+                           bool tree = false);
 
         void UpdateEnterpointSet(Index::DEGNode *qnode);
         void UpdateEnterpointSet();

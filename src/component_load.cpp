@@ -172,6 +172,7 @@ namespace stkq
         unsigned delete_num{};
         unsigned delete_dim{};
         // 10%
+        // load_data<unsigned>("/data_2/wangzheng/DEG/data/OpenImage/delete.ivecs", delete_data, delete_num, delete_dim);
         load_data<unsigned>("/root/data/output/OpenImage/delete.ivecs", delete_data, delete_num, delete_dim);
         // load_data<unsigned>("/root/data/output/OpenImage/delete_3.ivecs", delete_data, delete_num, delete_dim);
         // load_data<unsigned>("/root/data/output/OpenImage/delete_small.ivecs", delete_data, delete_num, delete_dim);

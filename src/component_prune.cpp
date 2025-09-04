@@ -246,7 +246,7 @@ namespace stkq
                 if (use_size >= threshold)
                 {
                     picked.push_back(Index::DEGNeighbor(candidate[i].id_, candidate[i].emb_distance_,
-                                                             candidate[i].geo_distance_, after_pruned_use_range, visited_layer));
+                                                            candidate[i].geo_distance_, after_pruned_use_range, visited_layer, candidate[i].is_update_insert_));
                 }
             }
             visited_layer++;
