@@ -1363,10 +1363,10 @@ namespace stkq
         }
         std::vector<unsigned> update_ids{update_id_set.begin(), update_id_set.end()};
         s = std::chrono::high_resolution_clock::now();
-#pragma omp parallel
+// #pragma omp parallel
         {
             auto *visited_list = new Index::VisitedList(index->getBaseLen());
-#pragma omp for schedule(dynamic, 128)
+// #pragma omp for schedule(dynamic, 128)
             // for (size_t i = 0; i < index->getBaseLen(); ++i)
             for (size_t i = 0; i < update_ids.size(); i ++)
             {
@@ -1377,8 +1377,8 @@ namespace stkq
                 }
                 // recomupte
                 std::vector<Index::DEGNNDescentNeighbor> pool;
-                SearchAtLayer(qnode, visited_list, pool, true);
-                // qnode->SetCandidateSet(pool);
+                SearchAtLayer(qnode, visited_list, pool, false);
+                qnode->SetCandidateSet(pool);
                 // auto tree = qnode->GetCandidateTree();
                 // if(!tree->getNeighbors(qnode->GetId()).empty()) {
                 //     for (auto &nei : tree->getNeighbors(qnode->GetId())) {
@@ -1414,28 +1414,26 @@ namespace stkq
         auto id = node1->GetId();
         std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
         UpdateEnterpointSet(node1);
-        auto node1_candidate_tree = node1->GetCandidateTree();
-        std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+        auto node1_candidates = node1->GetCandidateSet();
+        // std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
         // auto node1_candidates = update_node->GetCandidateSet();
-        auto tree = update_node->GetCandidateTree();
+        // auto tree = update_node->GetCandidateTree();
         
-        for (const auto &f : node1_friends) {
-            auto *fnode = index->DEG_nodes_[f.id_];
-            if (fnode->GetDelete()) {
-                // TODO add about delete node to tempers
-                layer = f.layer_;
-                continue;
-                for (auto& [id, info]: tree->getNeighborNodes(f.id_)) {
-                    tempres.emplace_back(id, info.emb_distance_, info.geo_distance_, true, -1);
-                }
-            };
-            id_set.insert(f.id_);
-            tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+        for (auto &cand : node1_candidates) {
+            if (index->DEG_nodes_[cand.id_]->GetDelete()) {
+                cand.delete_ = true;
+            }
+            if (cand.id_ == update_node->GetId()) {
+                cand.delete_ = true;
+            }
         }
 
-        if (layer == -1) {
-            return;
-        }
+        // if (layer == -1) {
+        //     return;
+        // }
+        auto queue = Index::skyline_queue(200);
+        queue.init_queue(node1_candidates);
+        node1_candidates.swap(queue.pool);
 
         // 从candidate中建立连接  
         // size_t cnt = 0;
@@ -1454,7 +1452,7 @@ namespace stkq
         //     }
         // }
 
-        a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+        a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), node1_candidates, result);
         node1->SetFriends(result);
         for (auto& t : tmp) {
             auto *cand = index->DEG_nodes_[t.id_];

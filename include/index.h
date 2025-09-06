@@ -573,7 +573,7 @@ namespace stkq
             float geo_distance_;
             bool flag;
             int layer_;
-            bool is_update_insert_ = false;
+            bool delete_ = false;
             DEGNNDescentNeighbor() = default;
             DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer)
             {
@@ -586,7 +586,7 @@ namespace stkq
             //     layer_(other.layer_)
             // {
             }
-            DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer, bool is_update) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer), is_update_insert_(is_update)
+            DEGNNDescentNeighbor(unsigned id, float emb_distance, float geo_distance, bool f, int layer, bool delete_) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), flag(f), layer_(layer), delete_(delete_)
             {
             }
             inline bool operator<(const DEGNNDescentNeighbor &other) const
@@ -892,7 +892,7 @@ namespace stkq
                     insert_points.swap(remain_points);
                     for (auto &point : skyline_result)
                     {
-                        pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l, point.is_update_insert_);
+                        pool.emplace_back(point.id_, point.emb_distance_, point.geo_distance_, true, l);
                     }
                     std::vector<DEGNNDescentNeighbor>().swap(skyline_result);
                     std::vector<DEGNNDescentNeighbor>().swap(remain_points);
@@ -908,13 +908,13 @@ namespace stkq
                 float min_emb_dis = std::numeric_limits<float>::max();
                 for (const auto &point : points)
                 {
-                    if (point.emb_distance_ < min_emb_dis)
-                    {
+                    if (point.delete_) {
+                        continue;
+                    }
+                    if (point.emb_distance_ < min_emb_dis) {
                         skyline.push_back(point);
                         min_emb_dis = point.emb_distance_;
-                    }
-                    else
-                    {
+                    } else {
                         remain_points.emplace_back(point);
                     }
                 }
