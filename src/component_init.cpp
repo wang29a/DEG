@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
@@ -917,6 +918,28 @@ namespace stkq
     {
         SetConfigs();
         BuildByIncrementInsert();
+        // Delete();
+        // Update();
+        std::vector<unsigned> v(101);
+        std::iota(v.begin(), v.end(), 0);  // 从 0 开始依次赋值
+        std::vector<unsigned> chose_ids;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::shuffle(v.begin(), v.end(), gen);
+
+        chose_ids.assign(v.begin(), v.end());
+        for (auto &id : chose_ids) {
+            std::cout << id << " :" << std::endl;
+            auto &friends = index->DEG_nodes_[id]->GetFriends();
+            for (auto &f : friends) {
+                std::cout <<" neighbor: " <<f.id_ << " x: " << f.emb_distance_ << " y : " << f.geo_distance_ << " layer: " << f.layer_ << std::endl;
+                    std::cout << "  range :";
+                for (auto &rang : f.available_range) {
+                    std::cout << " { " << rang.first << ", " << rang.second << " }";
+                }
+                std::cout<< std::endl;
+            }
+        }
         std::cout << "index is built over" << std::endl;
     }
 
@@ -1040,8 +1063,6 @@ namespace stkq
             std::cout<<"build time: " << time.count() <<std::endl;
 
 
-        // Delete();
-        Update();
     }
 
     void ComponentInitDEG::WriteMultipleCandidate(const std::string& filename,
@@ -1378,6 +1399,13 @@ namespace stkq
                 // recomupte
                 std::vector<Index::DEGNNDescentNeighbor> pool;
                 SearchAtLayer(qnode, visited_list, pool, false);
+                // SearchAtLayer(qnode, visited_list, pool, true);
+                // std::vector<Index::DEGNNDescentNeighbor> new_vec;
+                // size_t num = qnode->GetMaxM()*2;
+                // num = std::min(num, pool.size());
+                // new_vec.reserve(num);
+                // std::move(pool.begin(), pool.begin()+num, std::back_inserter(new_vec));
+                // qnode->SetCandidateSet(new_vec);
                 qnode->SetCandidateSet(pool);
                 // auto tree = qnode->GetCandidateTree();
                 // if(!tree->getNeighbors(qnode->GetId()).empty()) {
@@ -1410,49 +1438,80 @@ namespace stkq
         std::vector<Index::DEGNNDescentNeighbor> tmp;
 
         auto *node1 = update_node;
-        unsigned layer = -1;
-        auto id = node1->GetId();
         std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
         UpdateEnterpointSet(node1);
         auto node1_candidates = node1->GetCandidateSet();
-        // std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
-        // auto node1_candidates = update_node->GetCandidateSet();
-        // auto tree = update_node->GetCandidateTree();
+        std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+
+        for (const auto &f : node1_friends)
+        {
+            auto *fnode = index->DEG_nodes_[f.id_];
+            if (fnode->GetDelete()) {
+                continue;
+            };
+            id_set.insert(f.id_);
+        }
+
+        // 树
+        {
+            // auto tree = update_node->GetCandidateTree();
+            // for (const auto &f : node1_friends) {
+            //     auto *fnode = index->DEG_nodes_[f.id_];
+            //     if (fnode->GetDelete()) {
+            //         // TODO add about delete node to tempers
+            //         continue;
+            //         for (auto& [id, info]: tree->getNeighborNodes(f.id_)) {
+            //             tempres.emplace_back(id, info.emb_distance_, info.geo_distance_, true, -1);
+            //         }
+            //     };
+            //     id_set.insert(f.id_);
+            //     tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+            // }
+            // a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+        }
         
-        for (auto &cand : node1_candidates) {
-            if (index->DEG_nodes_[cand.id_]->GetDelete()) {
-                cand.delete_ = true;
+        // 排除删除点
+        {
+            for (auto &cand : node1_candidates) {
+                if (index->DEG_nodes_[cand.id_]->GetDelete()) {
+                    cand.delete_ = true;
+                }
+                if (cand.id_ == update_node->GetId()) {
+                    cand.delete_ = true;
+                }
             }
-            if (cand.id_ == update_node->GetId()) {
-                cand.delete_ = true;
+            auto queue = Index::skyline_queue(200);
+            queue.init_queue(node1_candidates);
+            node1_candidates.swap(queue.pool);
+            a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), node1_candidates, result);
+        }
+
+        // 向前顶
+        {
+            // 从candidate中建立连接  
+            // size_t cnt = 0;
+            // for (size_t i = 1; i < node1_candidates.size(); i ++) {
+            //     auto &cand = node1_candidates[i];
+            //     if (cnt > index->max_m_) {
+            //         break;
+            //     }
+            //     // 4
+            //     auto *cand_node = index->DEG_nodes_[cand.id_];
+            //     if (cand_node->GetId() == -1) continue;
+            //     if (id_set.insert(cand.id_).second) {
+            //         tempres.emplace_back(cand.id_, cand.emb_distance_, cand.geo_distance_, true, -1);
+            //         tmp.emplace_back(cand);
+            //         cnt ++;
+            //     }
+            // }
+        }
+
+        for (auto &res : result) {
+            if (id_set.find(res.id_) == id_set.end()) {
+                tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
             }
         }
 
-        // if (layer == -1) {
-        //     return;
-        // }
-        auto queue = Index::skyline_queue(200);
-        queue.init_queue(node1_candidates);
-        node1_candidates.swap(queue.pool);
-
-        // 从candidate中建立连接  
-        // size_t cnt = 0;
-        // for (size_t i = 1; i < node1_candidates.size(); i ++) {
-        //     auto &cand = node1_candidates[i];
-        //     if (cnt > index->max_m_) {
-        //         break;
-        //     }
-        //     // 4
-        //     auto *cand_node = index->DEG_nodes_[cand.id_];
-        //     if (cand_node->GetId() == -1) continue;
-        //     if (id_set.insert(cand.id_).second) {
-        //         tempres.emplace_back(cand.id_, cand.emb_distance_, cand.geo_distance_, true, -1);
-        //         tmp.emplace_back(cand);
-        //         cnt ++;
-        //     }
-        // }
-
-        a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), node1_candidates, result);
         node1->SetFriends(result);
         for (auto& t : tmp) {
             auto *cand = index->DEG_nodes_[t.id_];
@@ -1579,8 +1638,7 @@ namespace stkq
                     }
                 }
                 k++;
-                if (k >= queue.pool.size())
-                {
+                if (k >= queue.pool.size()) {
                     break;
                 }
             }
@@ -1608,8 +1666,7 @@ namespace stkq
         std::vector<Index::DEGNNDescentNeighbor> tempres;
         std::vector<Index::DEGNeighbor> result;
         tempres.emplace_back(Index::DEGNNDescentNeighbor(target->GetId(), e_dist, s_dist, true, -1));
-        for (const auto &neighbor : neighbors)
-        {
+        for (const auto &neighbor : neighbors) {
             tempres.emplace_back(Index::DEGNNDescentNeighbor(neighbor.id_, neighbor.emb_distance_, neighbor.geo_distance_, true, -1));
         }
         neighbors.clear();
@@ -1627,8 +1684,7 @@ namespace stkq
         std::vector<Index::DEGNNDescentNeighbor> tempres;
         std::vector<Index::DEGNeighbor> result;
         tempres.emplace_back(Index::DEGNNDescentNeighbor(target->GetId(), e_dist, s_dist, true, -1, true));
-        for (const auto &neighbor : neighbors)
-        {
+        for (const auto &neighbor : neighbors) {
             tempres.emplace_back(Index::DEGNNDescentNeighbor(neighbor.id_, neighbor.emb_distance_, neighbor.geo_distance_, true, -1));
         }
         neighbors.clear();
