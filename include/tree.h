@@ -32,8 +32,8 @@ namespace stkq
         std::unordered_map<NodeId, Node> nodes_;  // 存储节点ID到节点对象的映射
         
         // 为树结构优化：维护父子关系映射
-        std::unordered_map<NodeId, NodeId> parent_map_;
-        std::unordered_map<NodeId, std::unordered_set<NodeId>> children_map_;
+        // std::unordered_map<NodeId, NodeId> parent_map_;
+        // std::unordered_map<NodeId, std::unordered_set<NodeId>> children_map_;
         
     public:
         DirectedGraph() = default;
@@ -59,7 +59,7 @@ namespace stkq
             
             nodes_.emplace(node_id, Node{node_id, data});
             adjacency_list_[node_id]; // 创建空的邻接表
-            children_map_[node_id];   // 创建空的子节点集合
+            // children_map_[node_id];   // 创建空的子节点集合
             return true;
         }
         
@@ -73,10 +73,45 @@ namespace stkq
             
             nodes_.emplace(node_id, Node{node_id, std::move(data)});
             adjacency_list_[node_id]; // 创建空的邻接表
-            children_map_[node_id];   // 创建空的子节点集合
+            // children_map_[node_id];   // 创建空的子节点集合
             return true;
         }
         
+        /**
+        * 更新节点数据 - O(1) 平均时间复杂度
+        */
+        bool updateNodeData(const NodeId& node_id, const NodeData& data) {
+            auto it = nodes_.find(node_id);
+            if (it == nodes_.end()) {
+                return false; // 节点不存在
+            }
+            it->second.data = data;
+            return true;
+        }
+        
+        /**
+        * 更新节点数据（移动语义）- O(1) 平均时间复杂度
+        */
+        bool updateNodeData(const NodeId& node_id, NodeData&& data) {
+            auto it = nodes_.find(node_id);
+            if (it == nodes_.end()) {
+                return false; // 节点不存在
+            }
+            it->second.data = std::move(data);
+            return true;
+        }
+
+        /**
+        * 获取节点数据 - O(1) 平均时间复杂度
+        */
+        std::optional<NodeData> getNodeData(const NodeId& node_id) const {
+            auto it = nodes_.find(node_id);
+            if (it == nodes_.end()) {
+                return std::nullopt;
+            }
+            return it->second.data;
+        }
+
         /**
         * 检查节点是否存在 - O(1) 平均时间复杂度
         */
@@ -104,8 +139,8 @@ namespace stkq
             
             // 更新树结构信息（假设这是一个有向树）
             if (inserted) {
-                parent_map_[to] = from;
-                children_map_[from].insert(to);
+                // parent_map_[to] = from;
+                // children_map_[from].insert(to);
             }
             
             return inserted;
@@ -124,8 +159,8 @@ namespace stkq
             
             // 更新树结构信息
             if (removed) {
-                parent_map_.erase(to);
-                children_map_[from].erase(to);
+                // parent_map_.erase(to);
+                // children_map_[from].erase(to);
             }
             
             return removed;
@@ -170,19 +205,19 @@ namespace stkq
         /**
         * 获取节点的所有子节点（树结构专用）- O(1) 访问
         */
-        const std::unordered_set<NodeId>& getChildren(const NodeId& node_id) const {
-            static const std::unordered_set<NodeId> empty_set{};
-            auto it = children_map_.find(node_id);
-            return (it != children_map_.end()) ? it->second : empty_set;
-        }
+        // const std::unordered_set<NodeId>& getChildren(const NodeId& node_id) const {
+        //     static const std::unordered_set<NodeId> empty_set{};
+        //     auto it = children_map_.find(node_id);
+        //     return (it != children_map_.end()) ? it->second : empty_set;
+        // }
         
         /**
         * 获取节点的父节点（树结构专用）- O(1) 访问
         */
-        std::optional<NodeId> getParent(const NodeId& node_id) const {
-            auto it = parent_map_.find(node_id);
-            return (it != parent_map_.end()) ? std::optional<NodeId>{it->second} : std::nullopt;
-        }
+        // std::optional<NodeId> getParent(const NodeId& node_id) const {
+        //     auto it = parent_map_.find(node_id);
+        //     return (it != parent_map_.end()) ? std::optional<NodeId>{it->second} : std::nullopt;
+        // }
         
         /**
         * 获取节点的入度 - O(V) 时间复杂度（可优化为 O(1) 通过维护入度计数）
@@ -212,6 +247,18 @@ namespace stkq
         */
         const std::unordered_set<NodeId>& getNodes() const {
             return nodes_;
+        }
+
+        /**
+        * 获取所有节点ID - O(1) 访问
+        */
+        std::vector<NodeId> getNodeIds() const {
+            std::vector<NodeId> node_ids;
+            node_ids.reserve(nodes_.size());
+            for (const auto& [id, node] : nodes_) {
+                node_ids.push_back(id);
+            }
+            return node_ids;
         }
         
         // =============== 统计信息 ===============

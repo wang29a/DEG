@@ -932,6 +932,9 @@ namespace stkq
                 unsigned idx = 0;
                 for (const auto &point : points)
                 {
+                    if (point.delete_) {
+                        continue;
+                    }
                     tree.insertNode(point.id_, NodeInfo{point.emb_distance_, point.geo_distance_, point.layer_});
                     if (point.emb_distance_ < min_emb_dis) {
                         skyline.push_back(point);
@@ -1006,6 +1009,16 @@ namespace stkq
                     remain_points.clear();
                     l++;
                 }
+                // for (auto &id : res->getNodeIds()) {
+                //     auto node_data = res->getNodeData(id);
+                //     if (node_data.has_value()) {
+                //         for (auto &firend : res->getNeighborNodes(id)) {
+                //             if (firend.data.layer_ != node_data->layer_+1) {
+                //                 res->removeEdge(id, firend.id);
+                //             }
+                //         }
+                //     }
+                // }
                 num_layer = l;
                 return res;
             }
