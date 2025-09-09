@@ -930,6 +930,8 @@ namespace stkq
                 // Sweep to find skyline
                 float min_emb_dis = std::numeric_limits<float>::max();
                 unsigned idx = 0;
+                std::vector<unsigned> st;
+                int head = 0;
                 for (const auto &point : points)
                 {
                     if (point.delete_) {
@@ -938,10 +940,17 @@ namespace stkq
                     tree.insertNode(point.id_, NodeInfo{point.emb_distance_, point.geo_distance_, point.layer_});
                     if (point.emb_distance_ < min_emb_dis) {
                         skyline.push_back(point);
+                        st.push_back(idx);
                         idx = point.id_;
                         min_emb_dis = point.emb_distance_;
                     } else {
+                        while (head < st.size() && tree.getNodeData(st.at(head))->emb_distance_ >= point.emb_distance_) {
+                            head ++;
+                        }
                         tree.addEdge(idx, point.id_);
+                        for (size_t i = head; i < st.size(); i ++) {
+                            tree.addEdge(st.at(i), point.id_);
+                        }
                         remain_points.emplace_back(point);
                     }
                 }
