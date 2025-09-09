@@ -1384,10 +1384,27 @@ namespace stkq
         }
         std::vector<unsigned> update_ids{update_id_set.begin(), update_id_set.end()};
         s = std::chrono::high_resolution_clock::now();
+
 // #pragma omp parallel
+//         {
+//             auto *visited_list = new Index::VisitedList(index->getBaseLen());
+// #pragma omp for schedule(dynamic, 128)
+//             for (size_t i = 0; i < update_ids.size(); i ++)
+//             {
+//                 auto *qnode = index->DEG_nodes_[update_ids.at(i)];
+//                 if (qnode->GetDelete()) {
+//                     continue;
+//                 }
+//                 // recomupte
+//                 std::vector<Index::DEGNNDescentNeighbor> pool;
+//                 SearchAtLayer(qnode, visited_list, pool, true);
+//             }
+//             delete visited_list;
+//         }
+#pragma omp parallel
         {
             auto *visited_list = new Index::VisitedList(index->getBaseLen());
-// #pragma omp for schedule(dynamic, 128)
+#pragma omp for schedule(dynamic, 128)
             // for (size_t i = 0; i < index->getBaseLen(); ++i)
             for (size_t i = 0; i < update_ids.size(); i ++)
             {
@@ -1396,10 +1413,12 @@ namespace stkq
                 if (qnode->GetDelete()) {
                     continue;
                 }
-                // recomupte
                 std::vector<Index::DEGNNDescentNeighbor> pool;
-                // SearchAtLayer(qnode, visited_list, pool, false);
                 SearchAtLayer(qnode, visited_list, pool, true);
+                // recomupte
+                // std::vector<Index::DEGNNDescentNeighbor> pool;
+                // SearchAtLayer(qnode, visited_list, pool, false);
+                // SearchAtLayer(qnode, visited_list, pool, true);
                 // std::vector<Index::DEGNNDescentNeighbor> new_vec;
                 // size_t num = qnode->GetMaxM()*2;
                 // num = std::min(num, pool.size());
@@ -1460,7 +1479,7 @@ namespace stkq
                 if (fnode->GetDelete()) {
                     // TODO add about delete node to tempers
                     // continue;
-                    for (auto& [id, info]: tree->getNeighborNodes(f.id_)) {
+                    for (auto [id, info]: tree->getNeighborNodes(f.id_)) {
                         if (index->DEG_nodes_[id]->GetDelete()) {
                             continue;
                         }
@@ -1469,9 +1488,11 @@ namespace stkq
                         }
                         tempres.emplace_back(id, info.emb_distance_, info.geo_distance_, true, -1);
                     }
-                };
+                } else{
                 // id_set.insert(f.id_);
-                tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+                    tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+                }
+                
             }
             a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
         }
@@ -1523,9 +1544,7 @@ namespace stkq
         }
 
         for (auto &res : result) {
-            if (id_set.find(res.id_) == id_set.end()) {
-                tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
-            }
+            tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
         }
 
         node1->SetFriends(result);
@@ -1534,7 +1553,7 @@ namespace stkq
             if (cand->GetDelete()) {
                 continue;
             }
-            Link(cand, node1, 0, t.emb_distance_, t.geo_distance_);
+            LinkUpdate(cand, node1, 0, t.emb_distance_, t.geo_distance_);
         }
     }
 
@@ -1649,7 +1668,7 @@ namespace stkq
                                                                      index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
                                                                      index->getBaseLocDim());
 
-                            queue.pool.emplace_back(id, e_d, s_d, true, -1, id == qnode->GetId());
+                            queue.pool.emplace_back(id, e_d, s_d, true, -1);
                         }
                     }
                 }
