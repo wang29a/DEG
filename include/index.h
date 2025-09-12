@@ -1018,16 +1018,16 @@ namespace stkq
                     remain_points.clear();
                     l++;
                 }
-                // for (auto &id : res->getNodeIds()) {
-                //     auto node_data = res->getNodeData(id);
-                //     if (node_data.has_value()) {
-                //         for (auto &firend : res->getNeighborNodes(id)) {
-                //             if (firend.data.layer_ != node_data->layer_+1) {
-                //                 res->removeEdge(id, firend.id);
-                //             }
-                //         }
-                //     }
-                // }
+                for (auto &id : res->getNodeIds()) {
+                    auto node_data = res->getNodeData(id);
+                    if (node_data.has_value()) {
+                        for (auto &firend : res->getNeighborNodes(id)) {
+                            if (firend.data.layer_ != node_data->layer_+1) {
+                                res->removeEdge(id, firend.id);
+                            }
+                        }
+                    }
+                }
                 num_layer = l;
                 return res;
             }

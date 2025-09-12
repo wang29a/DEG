@@ -13,6 +13,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace stkq
 {
@@ -1192,6 +1193,18 @@ namespace stkq
         };
         auto delete_nodes = GetRandomNonGroundIDs(index, sample_size);
         std::cout<<"delete node num:" << delete_nodes.size() << std::endl;
+        for (size_t i = 0; i < delete_nodes.size(); i ++)
+        {
+            index->DEG_nodes_[delete_nodes.at(i)]->SetDelete(true);
+            // auto neighbors = index->DEG_nodes_[delete_nodes.at(i)]->GetFriends();
+            // for (auto &n : neighbors)
+            //     update_id_set.insert(n.id_);
+        }
+        for (size_t i = 0; i < delete_nodes.size(); ++i)
+        {
+            RemoveFromEntryPoints(delete_nodes.at(i));
+        }
+        std::atomic<long long> total_ns{0};
 #pragma omp parallel
         {
 #pragma omp for schedule(dynamic, 128)
@@ -1203,12 +1216,18 @@ namespace stkq
                 }
                 auto delete_id = delete_nodes.at(i);
                 // RemoveFromEntryPoints(delete_id);
+                auto s = std::chrono::high_resolution_clock::now();
                 // index->DEG_nodes_[delete_id]->SetDelete(true);
                 DeleteNode(index->DEG_nodes_[delete_id]);
+                auto e = std::chrono::high_resolution_clock::now();
+                auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(e - s).count();
+
+                total_ns.fetch_add(diff, std::memory_order_relaxed);
             }
         }
+        std::cout<<"freshdiskann time: " << total_ns.load()/1e9 <<std::endl;
 
-        if (true) {
+        if (false) {
             std::unordered_set<unsigned> update_id_set;
             for (size_t i = 0; i < delete_nodes.size(); ++i)
             {
@@ -1264,47 +1283,47 @@ namespace stkq
 
     void ComponentInitDEG::DeleteNode(Index::DEGNode *delete_node)
     {  
-        std::unique_lock<std::mutex> lock(delete_node->GetAccessGuard());
-        // 获取要删除节点的所有邻居  
-        std::vector<Index::DEGNeighbor> &neighbors = delete_node->GetFriends();  
-        
-        // 从所有邻居的邻居列表中移除当前节点
-        for (const auto &neighbor : neighbors) {
-            auto *neighbor_node = index->DEG_nodes_[neighbor.id_];
-            if(neighbor_node->GetDelete()) continue;
-            RemoveFromNeighborList(neighbor_node, delete_node->GetId());
+        std::vector<std::pair<Index::DEGNode *, Index::DEGNode *>> groups;
+        {
+            std::unique_lock<std::mutex> lock(delete_node->GetAccessGuard());
+            // 获取要删除节点的所有邻居  
+            std::vector<Index::DEGNeighbor> &neighbors = delete_node->GetFriends();  
+            
+            // 从所有邻居的邻居列表中移除当前节点
+            for (const auto &neighbor : neighbors) {
+                auto *neighbor_node = index->DEG_nodes_[neighbor.id_];
+                if(neighbor_node->GetDelete()) continue;
+                RemoveFromNeighborList(neighbor_node, delete_node->GetId());
+            }
+            // 为所有邻居对建立新连接
+            for (size_t i = 0; i < neighbors.size(); i++) {
+                for (size_t j = i + 1; j < neighbors.size(); j++) {
+                    auto *node1 = index->DEG_nodes_[neighbors[i].id_];
+                    auto *node2 = index->DEG_nodes_[neighbors[j].id_];
+
+                    if(node1->GetDelete()) continue;
+                    if(node2->GetDelete()) continue;
+                    // 建立双向连接
+                    groups.push_back({node1, node2});
+                }  
+            }
         }
-        // 为所有邻居对建立新连接
-        for (size_t i = 0; i < neighbors.size(); i++) {
-            for (size_t j = i + 1; j < neighbors.size(); j++) {
-                auto *node1 = index->DEG_nodes_[neighbors[i].id_];
-                auto *node2 = index->DEG_nodes_[neighbors[j].id_];
 
-                if(node1->GetDelete()) continue;
-                if(node2->GetDelete()) continue;
-
-
-                // 计算距离
-                float e_d = index->get_E_Dist()->compare(
-                    index->getBaseEmbData() + node1->GetId() * index->getBaseEmbDim(),
-                    index->getBaseEmbData() + node2->GetId() * index->getBaseEmbDim(),
-                    index->getBaseEmbDim());
-                
-                float s_d = index->get_S_Dist()->compare(
-                    index->getBaseLocData() + node1->GetId() * index->getBaseLocDim(),
-                    index->getBaseLocData() + node2->GetId() * index->getBaseLocDim(),
-                    index->getBaseLocDim());
-                
-                // 建立双向连接  
-                LinkUpdate(node1, node2, 0, e_d, s_d);
-                LinkUpdate(node2, node1, 0, e_d, s_d);
-            }  
-        }  
+        for (auto &[x, y] : groups) {
+            float e_d = index->get_E_Dist()->compare(
+                index->getBaseEmbData() + x->GetId() * index->getBaseEmbDim(),
+                index->getBaseEmbData() + y->GetId() * index->getBaseEmbDim(),
+                index->getBaseEmbDim());
+            
+            float s_d = index->get_S_Dist()->compare(
+                index->getBaseLocData() + x->GetId() * index->getBaseLocDim(),
+                index->getBaseLocData() + y->GetId() * index->getBaseLocDim(),
+                index->getBaseLocDim());
+            LinkAll(x, y, 0, e_d, s_d);
+        }
         
         // 如果是入口点，从入口点集合中移除  
         RemoveFromEntryPoints(delete_node->GetId());
-        // 从节点数组中移除
-        delete_node->SetDelete(true);
     }
 
     
@@ -1363,18 +1382,33 @@ namespace stkq
         };
 
         auto delete_nodes = GetRandomNonGroundIDs(index, sample_size);
+        std::unordered_set<unsigned>delete_set{delete_nodes.begin(), delete_nodes.end()};
         std::atomic_size_t cnt{0};
         std::unordered_set<unsigned> update_id_set;
+        std::cout << "delete node num: " << delete_nodes.size() << " " << delete_set.size() << std::endl;
 // #pragma omp parallel
         {
 // #pragma omp for schedule(dynamic, 128)
             for (size_t i = 0; i < delete_nodes.size(); ++i)
             {
                 index->DEG_nodes_[delete_nodes.at(i)]->SetDelete(true);
-                auto neighbors = index->DEG_nodes_[delete_nodes.at(i)]->GetFriends();
-                for (auto &n : neighbors)
-                    update_id_set.insert(n.id_);
+                // auto neighbors = index->DEG_nodes_[delete_nodes.at(i)]->GetFriends();
+                // for (auto &n : neighbors)
+                //     update_id_set.insert(n.id_);
             }
+        }
+
+        for (size_t i = 0; i < index->getBaseLen() ; i ++) {
+            auto node = index->DEG_nodes_[i];
+            if (node->GetDelete()) {
+                continue;
+            }
+            auto neighbors = index->DEG_nodes_[i]->GetFriends();
+            for (auto &n : neighbors)
+                if (delete_set.find(n.id_) != delete_set.end()){
+                    update_id_set.insert(i);
+                    break;
+                }
         }
         std::cout << "__UPDATE: DEG__" << std::endl;
         std::cout<< "update node num: " << update_id_set.size() << std::endl;
@@ -1383,7 +1417,6 @@ namespace stkq
             RemoveFromEntryPoints(delete_nodes.at(i));
         }
         std::vector<unsigned> update_ids{update_id_set.begin(), update_id_set.end()};
-        s = std::chrono::high_resolution_clock::now();
 
 // #pragma omp parallel
 //         {
@@ -1401,6 +1434,8 @@ namespace stkq
 //             }
 //             delete visited_list;
 //         }
+        std::atomic<long long> total_ns{0};
+        // s = std::chrono::high_resolution_clock::now();
 #pragma omp parallel
         {
             auto *visited_list = new Index::VisitedList(index->getBaseLen());
@@ -1413,11 +1448,12 @@ namespace stkq
                 if (qnode->GetDelete()) {
                     continue;
                 }
-                std::vector<Index::DEGNNDescentNeighbor> pool;
-                SearchAtLayer(qnode, visited_list, pool, true);
-                // recomupte
                 // std::vector<Index::DEGNNDescentNeighbor> pool;
-                // SearchAtLayer(qnode, visited_list, pool, false);
+                // SearchAtLayer(qnode, visited_list, pool, true);
+                // recomupte
+                auto s = std::chrono::high_resolution_clock::now();
+                std::vector<Index::DEGNNDescentNeighbor> pool;
+                SearchAtLayer(qnode, visited_list, pool, false);
                 // SearchAtLayer(qnode, visited_list, pool, true);
                 // std::vector<Index::DEGNNDescentNeighbor> new_vec;
                 // size_t num = qnode->GetMaxM()*2;
@@ -1425,7 +1461,7 @@ namespace stkq
                 // new_vec.reserve(num);
                 // std::move(pool.begin(), pool.begin()+num, std::back_inserter(new_vec));
                 // qnode->SetCandidateSet(new_vec);
-                // qnode->SetCandidateSet(pool);
+                qnode->SetCandidateSet(pool);
                 // auto tree = qnode->GetCandidateTree();
                 // if(!tree->getNeighbors(qnode->GetId()).empty()) {
                 //     for (auto &nei : tree->getNeighbors(qnode->GetId())) {
@@ -1436,15 +1472,19 @@ namespace stkq
                 // disk IO
                 // auto result = ReadCandidateByIndex(filename, qnode->GetId());
                 // qnode->SetCandidateSet(result);
-                
                 UpdateNode(qnode);
-                qnode->SetCandidateTree(std::shared_ptr<DirectedGraph<int, NodeInfo>>());
+                auto e = std::chrono::high_resolution_clock::now();
+                auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(e - s).count();
+
+                total_ns.fetch_add(diff, std::memory_order_relaxed);
+                // qnode->SetCandidateTree(std::shared_ptr<DirectedGraph<int, NodeInfo>>());
             }
             delete visited_list;
         }
-        e = std::chrono::high_resolution_clock::now();
-        time = e-s;
-        std::cout<<"update time: " << time.count() <<std::endl;
+        // e = std::chrono::high_resolution_clock::now();
+        // time = e-s;
+        std::cout<<"update time: " << total_ns.load()/ 1e9 <<std::endl;
+        // std::cout<<"update time: " << time.count() <<std::endl;
     }
 
     void ComponentInitDEG::UpdateNode(Index::DEGNode *update_node)
@@ -1457,97 +1497,154 @@ namespace stkq
         std::vector<Index::DEGNNDescentNeighbor> tmp;
 
         auto *node1 = update_node;
-        std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
-        UpdateEnterpointSet(node1);
-        auto node1_candidates = node1->GetCandidateSet();
-        std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+        // std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+        // UpdateEnterpointSet(node1);
+        // auto node1_candidates = node1->GetCandidateSet();
+        // std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
 
-        for (const auto &f : node1_friends)
-        {
-            auto *fnode = index->DEG_nodes_[f.id_];
-            if (fnode->GetDelete()) {
-                continue;
-            };
-            id_set.insert(f.id_);
-        }
+        // for (const auto &f : node1_friends)
+        // {
+        //     auto *fnode = index->DEG_nodes_[f.id_];
+        //     if (fnode->GetDelete()) {
+        //         continue;
+        //     };
+        //     id_set.insert(f.id_);
+        // }
 
         // 树
-        {
-            auto tree = update_node->GetCandidateTree();
-            for (const auto &f : node1_friends) {
+        if (false){
+            std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+            UpdateEnterpointSet(node1);
+            auto node1_candidates = node1->GetCandidateSet();
+            std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+
+            for (const auto &f : node1_friends)
+            {
                 auto *fnode = index->DEG_nodes_[f.id_];
                 if (fnode->GetDelete()) {
-                    // TODO add about delete node to tempers
-                    // continue;
-                    for (auto [id, info]: tree->getNeighborNodes(f.id_)) {
-                        if (index->DEG_nodes_[id]->GetDelete()) {
-                            continue;
-                        }
-                        if (id_set.find(id) != id_set.end()) {
-                            continue;
-                        }
-                        tempres.emplace_back(id, info.emb_distance_, info.geo_distance_, true, -1);
-                    }
-                } else{
-                // id_set.insert(f.id_);
-                    tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
-                }
-                
+                    continue;
+                };
+                id_set.insert(f.id_);
             }
-            a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+
+            {
+                auto tree = update_node->GetCandidateTree();
+                for (const auto &f : node1_friends) {
+                    auto *fnode = index->DEG_nodes_[f.id_];
+                    if (fnode->GetDelete()) {
+                        // TODO add about delete node to tempers
+                        // continue;
+                        for (auto [id, info]: tree->getNeighborNodes(f.id_)) {
+                            if (index->DEG_nodes_[id]->GetDelete()) {
+                                continue;
+                            }
+                            if (id_set.find(id) != id_set.end()) {
+                                continue;
+                            }
+                            tempres.emplace_back(id, info.emb_distance_, info.geo_distance_, true, -1);
+                        }
+                    } else{
+                    // id_set.insert(f.id_);
+                        tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+                    }
+                    
+                }
+                a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+            }
+            for (auto &res : result) {
+                tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
+            }
+
+            node1->SetFriends(result);
         }
         
         // 排除删除点
-        {
-            // for (auto &cand : node1_candidates) {
-            //     if (index->DEG_nodes_[cand.id_]->GetDelete()) {
-            //         cand.delete_ = true;
-            //     }
-            //     if (cand.id_ == update_node->GetId()) {
-            //         cand.delete_ = true;
-            //     }
-            // }
-            // auto queue = Index::skyline_queue(200);
-            // queue.init_queue(node1_candidates);
-            // node1_candidates.swap(queue.pool);
-            // a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), node1_candidates, result);
+        if (true){
+            std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+            UpdateEnterpointSet(node1);
+            auto node1_candidates = node1->GetCandidateSet();
+            std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+
+            for (const auto &f : node1_friends)
+            {
+                auto *fnode = index->DEG_nodes_[f.id_];
+                if (fnode->GetDelete()) {
+                    continue;
+                };
+                id_set.insert(f.id_);
+            }
+            for (auto &cand : node1_candidates) {
+                if (index->DEG_nodes_[cand.id_]->GetDelete()) {
+                    cand.delete_ = true;
+                }
+                if (cand.id_ == update_node->GetId()) {
+                    cand.delete_ = true;
+                }
+            }
+            auto queue = Index::skyline_queue(200);
+            queue.init_queue(node1_candidates);
+            node1_candidates.swap(queue.pool);
+            a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), node1_candidates, result);
+            for (auto &res : result) {
+                tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
+            }
+
+            node1->SetFriends(result);
         }
 
         // 向前顶
-        {
-            // int layer = -1;
-            // for (const auto &f : node1_friends)
-            // {
-            //     auto *fnode = index->DEG_nodes_[f.id_];
-            //     if (fnode->GetDelete()) {
-            //         // layer = f.layer_;
-            //         continue;
-            //     };
-            //     id_set.insert(f.id_);
-            //     tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
-            // }
-            // // 从candidate中建立连接  
-            // size_t cnt = 0;
-            // for (size_t i = 1; i < node1_candidates.size(); i ++) {
-            //     auto &cand = node1_candidates[i];
-            //     if (cnt > index->max_m_) {
-            //         break;
-            //     }
-            //     auto *cand_node = index->DEG_nodes_[cand.id_];
-                // if (cand_node->GetDelete()) continue;
-            //     if (id_set.insert(cand.id_).second) {
-            //         tempres.emplace_back(cand.id_, cand.emb_distance_, cand.geo_distance_, true, -1);
-            //         cnt ++;
-            //     }
-            // }
-            // a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+        if(false){
+            std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+            UpdateEnterpointSet(node1);
+            auto node1_candidates = node1->GetCandidateSet();
+            std::vector<Index::DEGNeighbor> &node1_friends = node1->GetFriends();
+
+            for (const auto &f : node1_friends)
+            {
+                auto *fnode = index->DEG_nodes_[f.id_];
+                if (fnode->GetDelete()) {
+                    continue;
+                };
+                id_set.insert(f.id_);
+            }
+            int layer = -1;
+            for (const auto &f : node1_friends)
+            {
+                auto *fnode = index->DEG_nodes_[f.id_];
+                if (fnode->GetDelete()) {
+                    // layer = f.layer_;
+                    continue;
+                };
+                id_set.insert(f.id_);
+                tempres.emplace_back(f.id_, f.emb_distance_, f.geo_distance_, true, -1);
+            }
+            // 从candidate中建立连接  
+            size_t cnt = 0;
+            for (size_t i = 1; i < node1_candidates.size(); i ++) {
+                auto &cand = node1_candidates[i];
+                if (cnt > index->max_m_) {
+                    break;
+                }
+                auto *cand_node = index->DEG_nodes_[cand.id_];
+                if (cand_node->GetDelete()) continue;
+                if (id_set.insert(cand.id_).second) {
+                    tempres.emplace_back(cand.id_, cand.emb_distance_, cand.geo_distance_, true, -1);
+                    cnt ++;
+                }
+            }
+            a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+            for (auto &res : result) {
+                tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
+            }
+
+            node1->SetFriends(result);
         }
 
-        for (auto &res : result) {
-            tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
-        }
+        // for (auto &res : result) {
+        //     tmp.emplace_back(res.id_, res.emb_distance_, res.geo_distance_, true, -1);
+        // }
 
-        node1->SetFriends(result);
+        // node1->SetFriends(result);
         for (auto& t : tmp) {
             auto *cand = index->DEG_nodes_[t.id_];
             if (cand->GetDelete()) {
@@ -1560,7 +1657,6 @@ namespace stkq
     bool ComponentInitDEG::RemoveFromNeighborList(Index::DEGNode *node, unsigned target_id)  
     {  
         std::vector<Index::DEGNeighbor> &neighbors = node->GetFriends();  
-        
         // 查找并移除目标节点  
         auto it = std::remove_if(neighbors.begin(), neighbors.end(),  
             [target_id](const Index::DEGNeighbor &neighbor) {  
@@ -1732,4 +1828,46 @@ namespace stkq
         std::vector<Index::DEGNNDescentNeighbor>().swap(tempres);
         std::vector<Index::DEGNeighbor>().swap(result);
     }
+
+    void ComponentInitDEG::LinkAll(Index::DEGNode *node1, Index::DEGNode *node2, int level, float e_dist, float s_dist)
+    {
+        if (node1->GetId() > node2->GetId()) {
+            std::swap(node1, node2);
+        }
+        std::unique_lock<std::mutex> lock1(node1->GetAccessGuard());
+        std::unique_lock<std::mutex> lock2(node2->GetAccessGuard());
+        {
+            std::unique_lock<std::mutex> lock(node1->GetAccessGuard());
+            std::vector<Index::DEGNeighbor> &neighbors = node1->GetFriends();
+            std::vector<Index::DEGNNDescentNeighbor> tempres;
+            std::vector<Index::DEGNeighbor> result;
+            tempres.emplace_back(Index::DEGNNDescentNeighbor(node2->GetId(), e_dist, s_dist, true, -1));
+            for (const auto &neighbor : neighbors) {
+                tempres.emplace_back(Index::DEGNNDescentNeighbor(neighbor.id_, neighbor.emb_distance_, neighbor.geo_distance_, true, -1));
+            }
+            neighbors.clear();
+            ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
+            a->DEG2Neighbor(node1->GetId(), node1->GetMaxM(), tempres, result);
+            node1->SetFriends(result);
+            std::vector<Index::DEGNNDescentNeighbor>().swap(tempres);
+            std::vector<Index::DEGNeighbor>().swap(result);
+        }
+        {
+            std::unique_lock<std::mutex> lock(node2->GetAccessGuard());
+            std::vector<Index::DEGNeighbor> &neighbors = node2->GetFriends();
+            std::vector<Index::DEGNNDescentNeighbor> tempres;
+            std::vector<Index::DEGNeighbor> result;
+            tempres.emplace_back(Index::DEGNNDescentNeighbor(node1->GetId(), e_dist, s_dist, true, -1));
+            for (const auto &neighbor : neighbors) {
+                tempres.emplace_back(Index::DEGNNDescentNeighbor(neighbor.id_, neighbor.emb_distance_, neighbor.geo_distance_, true, -1));
+            }
+            neighbors.clear();
+            ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
+            a->DEG2Neighbor(node2->GetId(), node2->GetMaxM(), tempres, result);
+            node2->SetFriends(result);
+            std::vector<Index::DEGNNDescentNeighbor>().swap(tempres);
+            std::vector<Index::DEGNeighbor>().swap(result);
+        }
+    }
+
 }

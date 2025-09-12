@@ -244,6 +244,8 @@ namespace stkq
 
         void LinkUpdate(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist);
 
+        void LinkAll(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist);
+
         void WriteMultipleCandidate(const std::string& filename,
                                 const std::vector<std::vector<Index::DEGNNDescentNeighbor>>& pools);
 
