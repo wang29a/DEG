@@ -114,6 +114,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
     std::string query_alpha_path(dataset_root);
     std::string partition_path(dataset_root);
     std::string ground_path(dataset_root);
+    std::string delete_path(dataset_root);
     float alpha = parameters.get<float>("alpha");
     int range = 0;
     std::cout << alpha << std::endl;
@@ -165,6 +166,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
             // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
             // query_alpha_path.append(R"(OpenImage/ed_2_query_alpha_)" + std::to_string(range) + ".fvecs");
             // ground_path.append(R"(OpenImage/ed_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // delete_path.append(R"(OpenImage/delete.ivecs)");
         }
         // 1%
         {
@@ -174,6 +176,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
             // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
             // query_alpha_path.append(R"(OpenImage/ed_1%_2_query_alpha_)" + std::to_string(range) + ".fvecs");
             // ground_path.append(R"(OpenImage/ed_1%_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // delete_path.append(R"(OpenImage/delete_1\%2.ivecs)");
         }
         // 0.1%
         {
@@ -183,6 +186,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
             // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
             // query_alpha_path.append(R"(OpenImage/ed_0.1%_1_query_alpha_)" + std::to_string(range) + ".fvecs");
             // ground_path.append(R"(OpenImage/ed_0.1%_1_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // delete_path.append(R"(OpenImage/delete_0.1\%_1.ivecs)");
         }
         // base_emb_path.append(R"(OpenImage/base_emb_10000.fvecs)");
         // base_loc_path.append(R"(OpenImage/base_loc_10000.fvecs)");
@@ -198,9 +202,11 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
             // query_loc_path.append(R"(OpenImage/val_1000_text.fvecs)");
             // query_alpha_path.append(R"(OpenImage/small_query_alpha_)" + std::to_string(range) + ".fvecs");
             // ground_path.append(R"(OpenImage/small_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // delete_path.append(R"(OpenImage/delete_small.ivecs)");
 
             // query_alpha_path.append(R"(OpenImage/small_2_query_alpha_)" + std::to_string(range) + ".fvecs");
             // ground_path.append(R"(OpenImage/small_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            // delete_path.append(R"(OpenImage/delete_small_2.ivecs)");
         }
     }
     else if (dataset == "sg-ins")
