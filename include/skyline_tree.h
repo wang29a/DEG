@@ -210,7 +210,7 @@ namespace skylinetree {
                 // 支配插入点
                 if (geo_distance < record.geo_distance_ && emb_distance < record.emb_distance_) {
                     next_layer_dominatedSet.emplace_back(n);
-                } else if (geo_distance >= record.geo_distance_ && emb_distance >= record.emb_distance_){
+                } else if (geo_distance > record.geo_distance_ && emb_distance > record.emb_distance_){
                     std::cout<<"error next layer node"<< std::endl;
                 }
             }
@@ -245,7 +245,7 @@ namespace skylinetree {
             return true;
         }
 
-        bool remove_with_index(unsigned id, float emb_distance, float geo_distance) {
+        bool remove_with_index(unsigned id) {
             auto it = node_index_.find(id);
             if (it == node_index_.end()) {
                 return false;  // 不存在
@@ -287,7 +287,6 @@ namespace skylinetree {
             NodePtr remove_node = nullptr;
 
             while (true) {
-                cur_layer.swap(next_layer);
                 next_layer.clear();
 
                 for(auto& n: cur_layer) {
@@ -304,6 +303,11 @@ namespace skylinetree {
                         }
                     }
                 }
+                cur_layer.swap(next_layer);
+            }
+
+            if (remove_node == nullptr) {
+                return false;
             }
 
             auto &childrens = remove_node->getChildren();
@@ -319,6 +323,15 @@ namespace skylinetree {
             for (auto &parent : parents) {
                 parent->removeChild(remove_node);
             }
+
+            // 如果是根节点，从根节点列表中移除
+            auto root_it = std::find(roots_.begin(), roots_.end(), remove_node);
+            if (root_it != roots_.end()) {
+                roots_.erase(root_it);
+            }
+
+            auto it = node_index_.find(id);
+            node_index_.erase(it);
 
             return true;
         }
@@ -348,7 +361,13 @@ namespace skylinetree {
             return res;
         }
 
-        // void 
+        const NodePtr getNode(unsigned id) {
+            auto it = node_index_.find(id);
+            if (it == node_index_.end()) {
+                return nullptr;
+            }
+            return it->second;
+        }
     };
 }
 }
