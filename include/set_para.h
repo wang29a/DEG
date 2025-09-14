@@ -160,13 +160,13 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
     {
         // 10%
         {
-            // base_emb_path.append(R"(OpenImage/base_image.fvecs)");
-            // base_loc_path.append(R"(OpenImage/base_text.fvecs)");
-            // query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
-            // query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
-            // query_alpha_path.append(R"(OpenImage/ed_2_query_alpha_)" + std::to_string(range) + ".fvecs");
-            // ground_path.append(R"(OpenImage/ed_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
-            // delete_path.append(R"(OpenImage/delete.ivecs)");
+            base_emb_path.append(R"(OpenImage/base_image.fvecs)");
+            base_loc_path.append(R"(OpenImage/base_text.fvecs)");
+            query_emb_path.append(R"(OpenImage/val_1000_2_image.fvecs)");
+            query_loc_path.append(R"(OpenImage/val_1000_2_text.fvecs)");
+            query_alpha_path.append(R"(OpenImage/ed_2_query_alpha_)" + std::to_string(range) + ".fvecs");
+            ground_path.append(R"(OpenImage/ed_2_groundtruth_alpha_)" + std::to_string(range) + ".ivecs");
+            delete_path.append(R"(OpenImage/delete.ivecs)");
         }
         // 1%
         {
@@ -256,6 +256,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
     parameters.set<std::string>("query_loc_path", query_loc_path);
     parameters.set<std::string>("query_alpha_path", query_alpha_path);
     parameters.set<std::string>("ground_path", ground_path);
+    parameters.set<std::string>("delete_path", delete_path);
 }
 
 void set_para(std::string alg, std::string dataset, stkq::Parameters &parameters)

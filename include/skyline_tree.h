@@ -3,13 +3,14 @@
 
 
 #include "tree.h"
-#include "index.h"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <set>
 #include <cassert>
+#include <unordered_map>
 #include <vector>
+#include <iostream>
 
 namespace stkq {
 #define SKY_ASSERT(expr, message) assert((expr) && (message))
@@ -18,9 +19,18 @@ struct Record {
     unsigned key_;
     float emb_distance_;
     float geo_distance_;
+    Record() = default;
+    Record(unsigned key, float emb_dist, float geo_dist) 
+        : key_(key), emb_distance_(emb_dist), geo_distance_(geo_dist) {}
 };
-
-struct NodeInfo {
+struct RecordL {
+    uint8_t layer_;
+    unsigned key_;
+    float emb_distance_;
+    float geo_distance_;
+    RecordL() = default;
+    RecordL(unsigned key, float emb_dist, float geo_dist, uint8_t layer) 
+        : layer_(layer), key_(key), emb_distance_(emb_dist), geo_distance_(geo_dist) {}
 };
 
 namespace skylinetree {
@@ -34,29 +44,53 @@ namespace skylinetree {
     private:
         Record record_;
         ChildrenSet children_;
-        ParentSet parent_;
+        ParentSet parents_;
 
     public:
         explicit Node(Record record) : record_(record) {
             children_.clear();
+            parents_.clear();
         }
 
         // 拷贝构造函数
+        Node(const Node& other) : record_(other.record_), 
+                                  children_(other.children_), 
+                                  parents_(other.parents_) {}
 
         // 移动构造函数
+        Node(Node&& other) noexcept : record_(std::move(other.record_)),
+                                      children_(std::move(other.children_)),
+                                      parents_(std::move(other.parents_)) {}
 
         // 赋值操作
+        Node& operator=(const Node& other) {
+            if (this != &other) {
+                record_ = other.record_;
+                children_ = other.children_;
+                parents_ = other.parents_;
+            }
+            return *this;
+        }
+
+        Node& operator=(Node&& other) noexcept {
+            if (this != &other) {
+                record_ = std::move(other.record_);
+                children_ = std::move(other.children_);
+                parents_ = std::move(other.parents_);
+            }
+            return *this;
+        }
 
         // 比较运算
-        auto operator<(const Node& other) const -> bool {
+        auto operator<(const Node& other) const noexcept -> bool {
             return record_.key_ < other. record_.key_;
         }
         
-        auto operator==(const Node& other) const -> bool {
+        auto operator==(const Node& other) const noexcept -> bool {
             return record_.key_ == other.record_.key_;
         }
         
-        auto operator!=(const Node& other) const -> bool {
+        auto operator!=(const Node& other) const noexcept -> bool {
             return !(*this == other);
         }
 
@@ -67,25 +101,25 @@ namespace skylinetree {
         const ChildrenSet& getChildren() const { return children_; }
 
         void addChildren(NodePtr child) {
-            children_.insert(child);
+            children_.insert(std::move(child));
         }
 
         bool removeChildren(NodePtr child) {
             return children_.erase(child) > 0;
         }
 
-        const ParentSet& getParent() const { return parent_; }
+        const ParentSet& getParent() const { return parents_; }
 
         void addParent(NodePtr parent) {
-            parent_.insert(parent);
+            parents_.insert(std::move(parent));
         }
 
         void clearParent() {
-            parent_.clear();
+            parents_.clear();
         }
 
         bool removeParent(NodePtr parent) {
-            return parent_.erase(parent) > 0;
+            return parents_.erase(parent) > 0;
         }
 
     };
@@ -94,18 +128,27 @@ namespace skylinetree {
         using NodePtr = std::shared_ptr<Node>;
 
     private:
-        std::vector<NodePtr> roots;
+        std::vector<NodePtr> roots_;
 
     public:
+        
+        SkylineTree() {
+            roots_.reserve(8);
+        }
 
-        void constructe(std::vector<Index::DEGNNDescentNeighbor> &pools) {
+        void constructe(std::vector<RecordL> &pools) {
+            size_t layer0_count = 0;
+            for (const auto& p : pools) {
+                if (p.layer_ == 0) ++layer0_count;
+            }
+            roots_.reserve(layer0_count);
             for (auto &p : pools) {
                 // todo
                 if (p.layer_ == 0) {
-                    Record t = {p.id_, p.emb_distance_, p.geo_distance_};
-                    roots.emplace_back(std::make_shared<Node>(std::move(t)));
+                    Record t = {p.key_, p.emb_distance_, p.geo_distance_};
+                    roots_.emplace_back(std::make_shared<Node>(std::move(t)));
                 } else {
-                    insert(p.id_, p.emb_distance_, p.geo_distance_, p.layer_);
+                    insert(p.key_, p.emb_distance_, p.geo_distance_);
                 }
             }
         }
@@ -121,27 +164,11 @@ namespace skylinetree {
             std::vector<NodePtr> next_layer_dominatingSet;
             std::vector<NodePtr> next_layer_dominatedSet;
 
-            for (auto& root : roots) {
-                // cur_layer.emplace_back(root);
-                auto &record = root->getRecord();
-                if (geo_distance > record.geo_distance_ && emb_distance > record.emb_distance_) {
-                // 支配插入点
-                    cur_layer_dominatingSet.emplace_back(root);
-                } else if (geo_distance == record.geo_distance_ && emb_distance == record.emb_distance_) {
-                } else if (geo_distance < record.geo_distance_ && emb_distance < record.emb_distance_) {
-                // 被插入点支配
-                    cur_layer_dominatedSet.emplace_back(root);
-                }
+            next_layer = roots_;
+            cur_layer_dominatingSet.clear();
 
-                for (auto& children : root->getChildren()) {
-                    const auto &parent = children->getParent();
-                    SKY_ASSERT(parent.find(root) != parent.end(), "插入删除逻辑有误");
-                    next_layer.emplace_back(children);
-                }
-            }
-
+            do {
             // 没有被当前层点支配
-            while (cur_layer_dominatingSet.empty()) {
                 // 在一层中若被支配，不可能支配同一层的其他点
                 SKY_ASSERT((cur_layer_dominatedSet.empty()), "在一层中若被支配，不可能支配同一层的其他点");
                 prev_layer_dominatingSet.swap(cur_layer_dominatingSet);
@@ -157,28 +184,26 @@ namespace skylinetree {
                     // 支配插入点
                         cur_layer_dominatingSet.emplace_back(n);
                     } else if (geo_distance == record.geo_distance_ && emb_distance == record.emb_distance_) {
+                        std::cout<<"same distance"<< std::endl;
+                        std::cout<< "  " << record.key_ << ", " << id << std::endl;
                     } else if (geo_distance < record.geo_distance_ && emb_distance < record.emb_distance_) {
                     // 被插入点支配
                         cur_layer_dominatedSet.emplace_back(n);
                     }
-                    for (auto& children : n->getChildren()) {
-                        next_layer.emplace_back(children);
+                    for (auto& child : n->getChildren()) {
+                        next_layer.emplace_back(child);
                     }
                 }
-            }
+            } while(!cur_layer_dominatingSet.empty());
 
-            cur_layer.swap(next_layer);
-            next_layer.clear();
             // 同一层中 被插入点支配的点
-            for(auto& n: cur_layer) {
+            for(auto& n: next_layer) {
                 auto &record = n->getRecord();
                 // 支配插入点
-                if (geo_distance > record.geo_distance_ && emb_distance > record.emb_distance_) {
-                    next_layer_dominatingSet.emplace_back(n);
-                } else if (geo_distance == record.geo_distance_ && emb_distance == record.emb_distance_) {
-                // 被插入点支配
-                } else if (geo_distance < record.geo_distance_ && emb_distance < record.emb_distance_) {
+                if (geo_distance < record.geo_distance_ && emb_distance < record.emb_distance_) {
                     next_layer_dominatedSet.emplace_back(n);
+                } else if (geo_distance >= record.geo_distance_ && emb_distance >= record.emb_distance_){
+                    std::cout<<"error next layer node"<< std::endl;
                 }
             }
 
@@ -201,34 +226,39 @@ namespace skylinetree {
 
             for (auto& parent : prev_layer_dominatingSet) {
                 parent->addChildren(insert_node);
+                insert_node->addParent(parent);
+            }
+
+            if (prev_layer_dominatingSet.empty()) {
+                roots_.emplace_back(insert_node);
             }
 
             return true;
         }
 
         bool remove(unsigned id, float emb_distance, float geo_distance) {
-            std::vector<NodePtr> cur_layer;
+            std::vector<NodePtr> cur_layer = roots_;
             std::vector<NodePtr> next_layer;
             NodePtr remove_node = nullptr;
 
-            for (auto& root : roots) {
-                // cur_layer.emplace_back(root);
-                auto &record = root->getRecord();
-                if (geo_distance > record.geo_distance_ && emb_distance > record.emb_distance_) {
-                // 支配删除点
-                    for (auto& children : root->getChildren()) {
-                        const auto &parent = children->getParent();
-                        SKY_ASSERT(parent.find(root) != parent.end(), "插入删除逻辑有误");
-                        next_layer.emplace_back(children);
-                    }
-                } else if (geo_distance == record.geo_distance_ && emb_distance == record.emb_distance_) {
-                    if (record.key_ == id) {
-                        remove_node = root;
-                        break;       
-                    }
-                }
+            // for (auto& root : roots_) {
+            //     // cur_layer.emplace_back(root);
+            //     auto &record = root->getRecord();
+            //     if (geo_distance > record.geo_distance_ && emb_distance > record.emb_distance_) {
+            //     // 支配删除点
+            //         for (auto& children : root->getChildren()) {
+            //             const auto &parent = children->getParent();
+            //             SKY_ASSERT(parent.find(root) != parent.end(), "插入删除逻辑有误");
+            //             next_layer.emplace_back(children);
+            //         }
+            //     } else if (geo_distance == record.geo_distance_ && emb_distance == record.emb_distance_) {
+            //         if (record.key_ == id) {
+            //             remove_node = root;
+            //             break;       
+            //         }
+            //     }
 
-            }
+            // }
 
             while (true) {
                 cur_layer.swap(next_layer);
@@ -267,32 +297,33 @@ namespace skylinetree {
             return true;
         }
 
-        std::shared_ptr<std::vector<Index::DEGNNDescentNeighbor>> traverse(size_t range) {
-            std::shared_ptr<std::vector<Index::DEGNNDescentNeighbor>> rec;
+        std::shared_ptr<std::vector<RecordL>> traverse(size_t range) {
+            std::shared_ptr<std::vector<RecordL>> res;
+            res->reserve(range);
             std::vector<NodePtr> next_layer;
             uint8_t layer = 0;
-            for (auto &root : roots) {
+            for (auto &root : roots_) {
                 auto &record = root->getRecord();
-                rec->emplace_back(record.key_, record.emb_distance_, record.geo_distance_, false, layer);
+                res->emplace_back(record.key_, record.emb_distance_, record.geo_distance_, layer);
                 for (auto& children : root->getChildren()) {
                     next_layer.emplace_back(children);
                 }
             }
             std::vector<NodePtr> cur_layer;   
-            while (!next_layer.empty() && rec->size() < range) {
+            while (!next_layer.empty() && res->size() < range) {
                 layer ++;
                 cur_layer.clear();
                 cur_layer.swap(next_layer);
 
                 for (auto &n : cur_layer) {
                     auto &record = n->getRecord();
-                    rec->emplace_back(record.key_, record.emb_distance_, record.geo_distance_, false, layer);
+                    res->emplace_back(record.key_, record.emb_distance_, record.geo_distance_, layer);
                     for (auto& children : n->getChildren())
                     next_layer.emplace_back(children);
                 }
             }
 
-            return rec;
+            return res;
         }
 
         // void 
