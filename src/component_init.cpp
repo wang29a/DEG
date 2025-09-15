@@ -921,7 +921,7 @@ namespace stkq
         SetConfigs();
         BuildByIncrementInsert();
         // Delete();
-        Update();
+        // Update();
         // std::vector<unsigned> v(500500);
         // std::iota(v.begin(), v.end(), 0);  // 从 0 开始依次赋值
         // std::vector<unsigned> chose_ids;
@@ -1045,7 +1045,7 @@ namespace stkq
             for (size_t i = 1; i < index->getBaseLen(); ++i)
             {
                 auto t = cnt.fetch_add(1);
-                if (t %10000 == 0) {
+                if (t %100 == 0) {
                     std::cout << t <<  "/" << 500000 << std::endl;
                 }
                 // if (delete_nodes.find(i) != delete_nodes.end()) {
@@ -1165,7 +1165,10 @@ namespace stkq
     void ComponentInitDEG::InsertNode(Index::DEGNode *qnode, Index::VisitedList *visited_list)
     {
         std::vector<Index::DEGNNDescentNeighbor> pool;
-        SearchAtLayer(qnode, visited_list, pool);
+        auto id = qnode->GetId();
+        SearchAtLayerWithTree(qnode, visited_list, pool);
+        // SearchAtLayer(qnode, visited_list, pool);
+        // std::cout<< "qnode: " << qnode->GetId() << " candidate: " << pool.size() << std::endl;
         ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
         std::vector<Index::DEGNeighbor> result;
         a->DEG2Neighbor(qnode->GetId(), qnode->GetMaxM(), pool, result);
@@ -1395,33 +1398,32 @@ namespace stkq
         std::vector<unsigned> update_ids{update_id_set.begin(), update_id_set.end()};
 
         std::atomic_size_t cnt{0};
-        s = std::chrono::high_resolution_clock::now();
-#pragma omp parallel
-        {
-            auto *visited_list = new Index::VisitedList(index->getBaseLen());
-#pragma omp for schedule(dynamic, 128)
-            for (size_t i = 0; i < update_ids.size(); i ++)
-            {
-                auto t = cnt.fetch_add(1);
-                if (t %10000 == 0) {
-                    std::cout << t <<  "/" << 500000 << std::endl;
-                }
-                auto *qnode = index->DEG_nodes_[update_ids.at(i)];
-                if (qnode->GetDelete()) {
-                    continue;
-                }
-                std::vector<Index::DEGNNDescentNeighbor> pool;
-                // SearchAtLayer(qnode, visited_list, pool, true)
-                // recomupte
-                // std::vector<Index::DEGNNDescentNeighbor> pool;
-                SearchAtLayer(qnode, visited_list, pool, false);
-                qnode->SetCandidateSet(pool);
-            }
-            delete visited_list;
-        }
-        e = std::chrono::high_resolution_clock::now();
-        time = e-s;
-        std::cout<<"skyline tree time: " << time.count() <<std::endl;
+//         s = std::chrono::high_resolution_clock::now();
+// #pragma omp parallel
+//         {
+//             auto *visited_list = new Index::VisitedList(index->getBaseLen());
+// #pragma omp for schedule(dynamic, 128)
+//             for (size_t i = 0; i < update_ids.size(); i ++)
+//             {
+//                 auto t = cnt.fetch_add(1);
+//                 if (t %10000 == 0) {
+//                     std::cout << t <<  "/" << 500000 << std::endl;
+//                 }
+//                 auto *qnode = index->DEG_nodes_[update_ids.at(i)];
+//                 if (qnode->GetDelete()) {
+//                     continue;
+//                 }
+//                 SearchAtLayerWithTree(qnode, visited_list);
+//                 // recomupte
+//                 // std::vector<Index::DEGNNDescentNeighbor> pool;
+//                 // SearchAtLayer(qnode, visited_list, pool);
+//                 // qnode->SetCandidateSet(pool);
+//             }
+//             delete visited_list;
+//         }
+//         e = std::chrono::high_resolution_clock::now();
+//         time = e-s;
+//         std::cout<<"skyline tree time: " << time.count() <<std::endl;
         cnt = 0;
         s = std::chrono::high_resolution_clock::now();
 #pragma omp parallel
@@ -1666,7 +1668,7 @@ namespace stkq
 
     void ComponentInitDEG::SearchAtLayer(Index::DEGNode *qnode,
                                          Index::VisitedList *visited_list,
-                                         std::vector<Index::DEGNNDescentNeighbor> &pool, bool tree)
+                                         std::vector<Index::DEGNNDescentNeighbor> &pool)
     {
         visited_list->Reset();
         unsigned ef_construction = index->ef_construction_;
@@ -1750,11 +1752,95 @@ namespace stkq
         }
 
         // 构建树/图结构
-        if (tree) {
-            qnode->SetCandidateTree(queue.tree());
-        }
 
         pool.swap(queue.pool);
+    }
+
+    void ComponentInitDEG::SearchAtLayerWithTree(Index::DEGNode *qnode,
+                                         Index::VisitedList *visited_list,
+                                         std::vector<Index::DEGNNDescentNeighbor> &pool)
+                                         
+    {
+        visited_list->Reset();
+        unsigned ef_construction = index->ef_construction_;
+        unsigned query = qnode->GetId();
+        std::shared_ptr<skylinetree::SkylineTree> tree = std::make_shared<skylinetree::SkylineTree>(ef_construction);
+
+        std::unique_lock<std::mutex> enterpoint_lock(index->enterpoint_mutex, std::defer_lock);
+
+        enterpoint_lock.lock();
+
+        for (int i = 0; i < index->DEG_enterpoints.size(); i++)
+        {
+            auto &enterpoint = index->DEG_enterpoints[i];
+
+            unsigned enterpoint_id = enterpoint->GetId();
+
+            float e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)query * index->getBaseEmbDim(),
+                                                     index->getBaseEmbData() + (size_t)enterpoint_id * index->getBaseEmbDim(),
+                                                     index->getBaseEmbDim());
+
+            float s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
+                                                     index->getBaseLocData() + (size_t)enterpoint_id * index->getBaseLocDim(),
+                                                     index->getBaseLocDim());
+
+            // pool.emplace_back(enterpoint_id, e_d, s_d, true, 0);
+            tree->insert(enterpoint_id, e_d, s_d);
+
+            visited_list->MarkAsVisited(enterpoint_id);
+        }
+
+        enterpoint_lock.unlock();
+
+
+        int k = 0;
+        int l = 0;
+
+        while (true)
+        {
+            auto pool = tree->traverse_layer();
+            if (pool == nullptr || pool->empty()) {
+                break;
+            }
+            for (size_t k = 0; k < pool->size(); k ++) {
+                auto &record = pool->at(k)->getRecord();
+                if (record.f_)
+                {
+                    record.f_ = false;
+                    unsigned n = record.key_;
+                    Index::DEGNode *candidate_node = index->DEG_nodes_[n];
+                    std::unique_lock<std::mutex> lock(candidate_node->GetAccessGuard());
+                    const std::vector<Index::DEGNeighbor> &neighbors = candidate_node->GetFriends();
+                    for (unsigned m = 0; m < neighbors.size(); ++m)
+                    {
+                        unsigned id = neighbors[m].id_;
+                        if (visited_list->NotVisited(id))
+                        {
+                            visited_list->MarkAsVisited(id);
+
+                            float e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)id * index->getBaseEmbDim(),
+                                                                    index->getBaseEmbData() + (size_t)query * index->getBaseEmbDim(),
+                                                                    index->getBaseEmbDim());
+
+                            float s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)id * index->getBaseLocDim(),
+                                                                    index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
+                                                                    index->getBaseLocDim());
+
+                            // queue.pool.emplace_back(id, e_d, s_d, true, -1);
+                            tree->insert(id, e_d, s_d);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 构建树/图结构
+        qnode->SetCandidateTree(tree);
+        auto tt = qnode->GetCandidateTree()->traverse(ef_construction);
+        // std::cout<< "qnode: " << qnode->GetId() << " candidate: " << tt->size() << std::endl;
+        for (auto &t: *tt) {
+            pool.emplace_back(t.key_, t.emb_distance_, t.geo_distance_, false, t.layer_);
+        }
     }
 
     void ComponentInitDEG::Link(Index::DEGNode *source, Index::DEGNode *target, int level, float e_dist, float s_dist)

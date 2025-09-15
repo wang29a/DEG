@@ -234,8 +234,12 @@ namespace stkq
 
         void SearchAtLayer(Index::DEGNode *qnode,
                            Index::VisitedList *visited_list,
-                           std::vector<Index::DEGNNDescentNeighbor> &result,
-                           bool tree = false);
+                           std::vector<Index::DEGNNDescentNeighbor> &result);
+
+
+        void SearchAtLayerWithTree(Index::DEGNode *qnode,
+                           Index::VisitedList *visited_list,
+                           std::vector<Index::DEGNNDescentNeighbor> &result);
 
         void UpdateEnterpointSet(Index::DEGNode *qnode);
         void UpdateEnterpointSet();
